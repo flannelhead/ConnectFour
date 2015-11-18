@@ -23,12 +23,12 @@ instance Show Disc where
 
 instance Show Board where
     show brd@(Board (nRows, nCols) _) = unlines . reverse
-        $ ('┗' : replicate nCols '━' ++ "┛")
-          : map (\line -> '┃' : line ++ "┃")
-            [ concat [ showCell $ discAt brd (row, col) | col <- [0..nCols-1] ]
+        $ ('┗' : replicate (2*nCols + 1) '━' ++ "┛")
+          : map (\line -> "┃ " ++ line ++ "┃")
+            [ concat [ showDisc $ discAt brd (row, col) | col <- [0..nCols-1] ]
               | row <- [0..nRows-1] ]
-        where showCell (Just disc) = show disc
-              showCell _           = " "
+        where showDisc (Just disc) = show disc ++ " "
+              showDisc _           = "  "
 
 boardIndex :: BoardSize -> (Int, Int) -> Int
 boardIndex (_, nCols) (row, col) = row * nCols + col
