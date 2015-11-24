@@ -72,7 +72,7 @@ dropDisc game = game { position = newPos }
           move = find (\(_, col) -> col == curCol) $ possibleMoves pos
           newPos = fromMaybe pos (makeMove pos <$> move)
 
-clamp :: Int -> Int -> Int -> Int
+clamp :: Ord a => a -> a -> a -> a
 clamp mn mx = max mn . min mx
 
 movePointer :: Int -> Game -> Game
