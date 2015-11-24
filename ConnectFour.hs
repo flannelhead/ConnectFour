@@ -5,7 +5,7 @@ import           Data.Maybe
 import           Data.List
 import           System.Console.ANSI
 
-data Disc = Red' | Blue' deriving Enum
+data Disc = Red' | Blue' deriving (Enum, Eq)
 type Turn = Disc
 data Player = Human | Computer
 -- (rows, columns)
@@ -26,8 +26,8 @@ instance Show Board where
     show brd@(Board (nRows, nCols) _ _) = unlines . reverse
         $ ('┗' : replicate (2*nCols + 1) '━' ++ "┛")
           : map (\line -> "┃ " ++ line ++ "┃")
-            [ concat [ showDisc $ discAt brd (row, col) | col <- [0..nCols-1] ]
-              | row <- [0..nRows-1] ]
+            [concat [showDisc $ discAt brd (row, col) | col <- [0..nCols-1]]
+            | row <- [0..nRows-1]]
         where showDisc (Just disc) = show disc ++ " "
               showDisc _           = "  "
 
@@ -55,4 +55,23 @@ emptyBoard size@(rows, cols) lineLen =
 nextTurn :: Turn -> Turn
 nextTurn Red' = Blue'
 nextTurn _    = Red'
+
+winner :: Position -> Maybe Disc
+winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
+    $ mapMaybe foldLine allLines
+    where foldLine :: [(Int, Int)] -> Maybe Disc
+          foldLine ln = foldl1 acc $ map (discAt brd) ln
+              where acc Nothing _ = Nothing
+                    acc a       b = if a == b then a else Nothing
+          allLines = concat [vert, horz, diag1, diag2]
+          vert = [[(r + dl, c) | dl <- line] | r <- rBot, c <- cAll]
+          horz = [[(r, c + dl) | dl <- line] | r <- rAll, c <- cLeft]
+          diag1 = [[(r + dl, c + dl) | dl <- line] | r <- rBot, c <- cLeft]
+          diag2 = [[(r - dl, c + dl) | dl <- line] | r <- rTop, c <- cLeft]
+          cAll = [0..nCols-1]
+          cLeft = [0..nCols-lineLen-1]
+          rAll = [0..nRows-1]
+          rBot = [0..nRows-lineLen-1]
+          rTop = [lineLen-1..nRows-1]
+          line = [0..lineLen-1]
 

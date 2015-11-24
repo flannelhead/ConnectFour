@@ -43,13 +43,25 @@ gameLoop game = do
     setCursorPosition 0 0
     putStr . pad 1 . show $ game
     hFlush stdout
+    case winner $ position game of
+        Just a -> endGame a
+        _      -> getPlayerMove game
+
+getPlayerMove :: Game -> IO ()
+getPlayerMove game = do
     chr <- getChar
     case chr of
         'h' -> gameLoop $ movePointer (-1) game
-        'l' -> gameLoop $ movePointer    1 game
+        'l' -> gameLoop $ movePointer 1    game
         ' ' -> gameLoop $ dropDisc game
         'q' -> return ()
         _   -> gameLoop game
+
+endGame :: Disc -> IO ()
+endGame player = putStrLn . pad 1
+    $ playerName player ++ " player is the winner!"
+    where playerName Red'  = "Red"
+          playerName Blue' = "Blue"
 
 main :: IO ()
 main = do
@@ -60,7 +72,7 @@ main = do
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { redPlayer = Human
-                  , bluePlayer = Computer
+                  , bluePlayer = Human
                   , position = Position startingPlayer (emptyBoard (6, 7) 4)
                   , cursorCol = 0 }
 
