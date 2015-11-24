@@ -69,9 +69,9 @@ winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
           diag1 = [[(r + dl, c + dl) | dl <- line] | r <- rBot, c <- cLeft]
           diag2 = [[(r - dl, c + dl) | dl <- line] | r <- rTop, c <- cLeft]
           cAll = [0..nCols-1]
-          cLeft = [0..nCols-lineLen-1]
+          cLeft = [0..nCols-lineLen]
           rAll = [0..nRows-1]
-          rBot = [0..nRows-lineLen-1]
+          rBot = [0..nRows-lineLen]
           rTop = [lineLen-1..nRows-1]
           line = [0..lineLen-1]
 
