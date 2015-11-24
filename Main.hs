@@ -6,14 +6,19 @@ import           System.Console.ANSI
 import           System.Random
 
 data Disc = Red' | Blue' deriving Enum
+type Turn = Disc
 data Player = Human | Computer
+-- (rows, columns)
 type BoardSize = (Int, Int)
-data Board = Board BoardSize (V.Vector (Maybe Disc))
+-- board size, line length, board vector
+data Board = Board BoardSize Int (V.Vector (Maybe Disc))
 data Game = Game { redPlayer  :: Player
                  , bluePlayer :: Player
-                 , turn       :: Disc
-                 , lineLength :: Int
-                 , board      :: Board }
+                 , position   :: Position
+                 , cursorCol  :: Int }
+data Position = Position Turn Board
+-- row, column
+type Move = (Int, Int)
 
 instance Show Disc where
     show disc = setSGRCode [SetColor Foreground Vivid $ color disc] ++
@@ -22,7 +27,7 @@ instance Show Disc where
               color Blue' = Blue
 
 instance Show Board where
-    show brd@(Board (nRows, nCols) _) = unlines . reverse
+    show brd@(Board (nRows, nCols) _ _) = unlines . reverse
         $ ('┗' : replicate (2*nCols + 1) '━' ++ "┛")
           : map (\line -> "┃ " ++ line ++ "┃")
             [ concat [ showDisc $ discAt brd (row, col) | col <- [0..nCols-1] ]
@@ -30,61 +35,79 @@ instance Show Board where
         where showDisc (Just disc) = show disc ++ " "
               showDisc _           = "  "
 
+instance Show Game where
+    show game = let (Position turn board) = position game in
+        replicate (2 + 2 * cursorCol game) ' ' ++ show turn ++ "\n"
+        ++ show board
+
 boardIndex :: BoardSize -> (Int, Int) -> Int
 boardIndex (_, nCols) (row, col) = row * nCols + col
 
 discAt :: Board -> (Int, Int) -> Maybe Disc
-discAt (Board bSize vec) (row, col) = vec V.! boardIndex bSize (row, col)
+discAt (Board bSize _ vec) (row, col) = vec V.! boardIndex bSize (row, col)
 
-freeRow :: Board -> Int -> Maybe Int
-freeRow brd@(Board (nRows, _) _) col =
-    find (\row -> isNothing $ discAt brd (row, col)) [0..nRows-1]
+possibleMoves :: Position -> [Move]
+possibleMoves (Position _ brd@(Board (_, nCols) _ _)) =
+    mapMaybe (\col -> (\row -> (row, col)) <$> freeRow brd col) [0..nCols-1]
+    where freeRow :: Board -> Int -> Maybe Int
+          freeRow brd2@(Board (nRows, _) _ _) col =
+            find (\row -> isNothing $ discAt brd2 (row, col)) [0..nRows-1]
 
-putDisc :: Board -> Disc -> Int -> Maybe Board
-putDisc brd@(Board bSize vec) disc col =
-    (\row -> Board bSize
-        (vec V.// [(boardIndex bSize (row, col), Just disc)]))
-    <$> freeRow brd col
+makeMove :: Position -> Move -> Position
+makeMove (Position trn (Board bSize lineLen vec)) move = Position (nextTurn trn)
+    $ Board bSize lineLen $ vec V.// [(boardIndex bSize move, Just trn)]
 
-emptyBoard :: BoardSize -> Board
-emptyBoard size@(rows, cols) =
-    Board size $ V.replicate (rows * cols) Nothing
+emptyBoard :: BoardSize -> Int -> Board
+emptyBoard size@(rows, cols) lineLen =
+    Board size lineLen $ V.replicate (rows * cols) Nothing
 
-nextTurn :: Disc -> Disc
+nextTurn :: Turn -> Turn
 nextTurn Red' = Blue'
 nextTurn _    = Red'
 
-playTurn :: Game -> IO Game
-playTurn game = do
-    col <- randomRIO (0, nCols-1)
-    _ <- getChar
-    return game { turn = nextTurn curDisc
-                , board = fromMaybe curBoard (putDisc curBoard curDisc col) }
-    where (_, nCols) = boardSize game
-          curBoard = board game
-          curDisc = turn game
+dropDisc :: Game -> Game
+dropDisc game = game { position = newPos }
+    where pos = position game
+          curCol = cursorCol game
+          move = find (\(_, col) -> col == curCol) $ possibleMoves pos
+          newPos = fromMaybe pos (makeMove pos <$> move)
+
+clamp :: Int -> Int -> Int -> Int
+clamp mn mx = max mn . min mx
+
+movePointer :: Int -> Game -> Game
+movePointer dx game = let col = cursorCol game + dx
+                          (_, nCols) = boardSize game
+                      in game { cursorCol = clamp 0 (nCols-1) col }
 
 boardSize :: Game -> BoardSize
-boardSize game = let Board bSize _ = board game in bSize
+boardSize game = let (Position _ (Board bSize _ _)) = position game in bSize
 
 gameLoop :: Game -> IO ()
 gameLoop game = do
     clearScreen
     setCursorPosition 0 0
-    print $ board game
+    print game
     hFlush stdout
-    playTurn game >>= gameLoop
+    chr <- getChar
+    case chr of
+        'h'  -> gameLoop $ movePointer (-1) game
+        'l'  -> gameLoop $ movePointer    1 game
+        '\n' -> gameLoop $ dropDisc game
+        'q'  -> return ()
+        _    -> gameLoop game
 
 main :: IO ()
 main = do
-    -- Console setup
     hSetBuffering stdout NoBuffering
     hSetBuffering stdin NoBuffering
     hSetEcho stdin False
+    hideCursor
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { redPlayer = Human
                   , bluePlayer = Computer
-                  , turn = startingPlayer
-                  , lineLength = 4
-                  , board = emptyBoard (6, 7) }
+                  , position = Position startingPlayer (emptyBoard (6, 7) 4)
+                  , cursorCol = 0 }
+
+    showCursor
