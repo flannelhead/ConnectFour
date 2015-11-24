@@ -1,9 +1,9 @@
-import           Data.List
-import           Data.Maybe
-import           System.IO
-import           System.Console.ANSI
-import           System.Random
-import           ConnectFour
+import Data.List
+import Data.Maybe
+import System.IO
+import System.Console.ANSI
+import System.Random
+import ConnectFour
 
 data Game = Game { redPlayer  :: Player
                  , bluePlayer :: Player
@@ -14,6 +14,10 @@ instance Show Game where
     show game = let (Position turn board) = position game in
         replicate (2 + 2 * cursorCol game) ' ' ++ show turn ++ "\n"
         ++ show board
+
+pad :: Int -> String -> String
+pad p str = replicate p '\n' ++
+    (unlines . map (replicate (2*p) ' ' ++) . lines $ str)
 
 clamp :: Ord a => a -> a -> a -> a
 clamp mn mx = max mn . min mx
@@ -37,7 +41,7 @@ gameLoop :: Game -> IO ()
 gameLoop game = do
     clearScreen
     setCursorPosition 0 0
-    print game
+    putStr . pad 1 . show $ game
     hFlush stdout
     chr <- getChar
     case chr of
