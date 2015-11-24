@@ -91,11 +91,11 @@ gameLoop game = do
     hFlush stdout
     chr <- getChar
     case chr of
-        'h'  -> gameLoop $ movePointer (-1) game
-        'l'  -> gameLoop $ movePointer    1 game
-        '\n' -> gameLoop $ dropDisc game
-        'q'  -> return ()
-        _    -> gameLoop game
+        'h' -> gameLoop $ movePointer (-1) game
+        'l' -> gameLoop $ movePointer    1 game
+        ' ' -> gameLoop $ dropDisc game
+        'q' -> return ()
+        _   -> gameLoop game
 
 main :: IO ()
 main = do
