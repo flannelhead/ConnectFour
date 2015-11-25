@@ -15,6 +15,7 @@ data Board = Board BoardSize Int (V.Vector (Maybe Disc))
 data Position = Position Turn Board
 -- row, column
 type Move = (Int, Int)
+data GameTree = Node Position [(Move, GameTree)]
 
 instance Show Disc where
     show disc = setSGRCode [SetColor Foreground Vivid $ color disc] ++
@@ -74,4 +75,14 @@ winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
           rBot = [0..nRows-lineLen]
           rTop = [lineLen-1..nRows-1]
           line = [0..lineLen-1]
+
+makeGameTree :: BoardSize -> Int -> Turn -> GameTree
+makeGameTree size lineLen turn = Node firstPos $ nodes firstPos
+    where firstPos = Position turn $ emptyBoard size lineLen
+          nodes :: Position -> [(Move, GameTree)]
+          nodes pos = map (\move -> (move, gameTreeFromMove pos move))
+            $ possibleMoves pos
+          gameTreeFromMove :: Position -> Move -> GameTree
+          gameTreeFromMove pos move = Node newPos $ nodes newPos
+            where newPos = makeMove pos move
 

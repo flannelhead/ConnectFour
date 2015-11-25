@@ -7,11 +7,14 @@ import ConnectFour
 
 data Game = Game { redPlayer  :: Player
                  , bluePlayer :: Player
-                 , position   :: Position
+                 , gameTree   :: GameTree
                  , cursorCol  :: Int }
 
+getPosition :: Game -> Position
+getPosition game = let (Node position _) = gameTree game in position
+
 instance Show Game where
-    show game = let (Position turn board) = position game in
+    show game = let (Position turn board) = getPosition game in
         replicate (2 + 2 * cursorCol game) ' ' ++ show turn ++ "\n"
         ++ show board
 
@@ -28,14 +31,13 @@ movePointer dx game = let col = cursorCol game + dx
                       in game { cursorCol = clamp 0 (nCols-1) col }
 
 boardSize :: Game -> BoardSize
-boardSize game = let (Position _ (Board bSize _ _)) = position game in bSize
+boardSize game = let (Position _ (Board bSize _ _)) = getPosition game in bSize
 
 dropDisc :: Game -> Game
-dropDisc game = game { position = newPos }
-    where pos = position game
-          curCol = cursorCol game
-          move = find (\(_, col) -> col == curCol) $ possibleMoves pos
-          newPos = fromMaybe pos (makeMove pos <$> move)
+dropDisc game = game { gameTree = newTree }
+    where tree@(Node _ nodes) = gameTree game
+          newTree = fromMaybe tree $ snd
+            <$> find (\((_, col), _) -> col == cursorCol game) nodes
 
 gameLoop :: Game -> IO ()
 gameLoop game = do
@@ -43,7 +45,7 @@ gameLoop game = do
     setCursorPosition 0 0
     putStr . pad 1 . show $ game
     hFlush stdout
-    case winner $ position game of
+    case winner $ getPosition game of
         Just a -> endGame a
         _      -> getPlayerMove game
 
@@ -59,7 +61,7 @@ getPlayerMove game = do
 
 endGame :: Disc -> IO ()
 endGame player = putStrLn . pad 1
-    $ playerName player ++ " player is the winner!"
+    $ playerName player ++ " player wins!"
     where playerName Red'  = "Red"
           playerName Blue' = "Blue"
 
@@ -73,7 +75,7 @@ main = do
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { redPlayer = Human
                   , bluePlayer = Human
-                  , position = Position startingPlayer (emptyBoard (6, 7) 4)
+                  , gameTree = makeGameTree (6, 7) 4 startingPlayer
                   , cursorCol = 0 }
 
     showCursor
