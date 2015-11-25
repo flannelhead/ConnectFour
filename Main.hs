@@ -37,7 +37,7 @@ dropDisc :: Game -> Game
 dropDisc game = game { gameTree = newTree }
     where tree@(Node _ nodes) = gameTree game
           newTree = fromMaybe tree $ snd
-            <$> find (\((_, col), _) -> col == cursorCol game) nodes
+            <$> find (\node -> (snd . fst) node == cursorCol game) nodes
 
 gameLoop :: Game -> IO ()
 gameLoop game = do
