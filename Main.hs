@@ -1,3 +1,4 @@
+import Control.Monad
 import Data.List
 import Data.Maybe
 import System.IO
@@ -7,16 +8,17 @@ import ConnectFour
 
 data Game = Game { redPlayer  :: Player
                  , bluePlayer :: Player
+                 , message    :: String
                  , gameTree   :: GameTree
                  , cursorCol  :: Int }
 
 getPosition :: Game -> Position
-getPosition game = let (Node position _) = gameTree game in position
+getPosition game = let Node position _ = gameTree game in position
 
 instance Show Game where
-    show game = let (Position turn board) = getPosition game in
+    show game = let Position turn board = getPosition game in
         replicate (2 + 2 * cursorCol game) ' ' ++ show turn ++ "\n"
-        ++ show board
+        ++ show board ++ "\n" ++ message game
 
 pad :: Int -> String -> String
 pad p str = replicate p '\n' ++
@@ -31,7 +33,7 @@ movePointer dx game = let col = cursorCol game + dx
                       in game { cursorCol = clamp 0 (nCols-1) col }
 
 boardSize :: Game -> BoardSize
-boardSize game = let (Position _ (Board bSize _ _)) = getPosition game in bSize
+boardSize game = let Position _ (Board bSize _ _) = getPosition game in bSize
 
 dropDisc :: Game -> Game
 dropDisc game = game { gameTree = newTree }
@@ -40,28 +42,58 @@ dropDisc game = game { gameTree = newTree }
             <$> find (\node -> (snd . fst) node == cursorCol game) nodes
 
 gameLoop :: Game -> IO ()
-gameLoop game = do
+gameLoop game = case winner $ getPosition game of
+    Just a -> endGame game a
+    _      -> makePlayerMove game
+
+drawGame :: Game -> IO ()
+drawGame game = do
     clearScreen
     setCursorPosition 0 0
     putStr . pad 1 . show $ game
     hFlush stdout
-    case winner $ getPosition game of
-        Just a -> endGame a
-        _      -> getPlayerMove game
 
-getPlayerMove :: Game -> IO ()
-getPlayerMove game = do
+currentPlayer :: Game -> Player
+currentPlayer game = let
+    Position turn _ = getPosition game
+    player = case turn of
+        Red'  -> redPlayer game
+        Blue' -> bluePlayer game
+    in player
+
+makePlayerMove :: Game -> IO ()
+makePlayerMove game = case currentPlayer game of
+    Human    -> makeHumanMove game
+    Computer -> makeComputerMove game
+
+makeHumanMove :: Game -> IO ()
+makeHumanMove game = do
+    drawGame game
+        { message = "h/j = move left/right, space = drop disc, q = quit" }
     chr <- getChar
     case chr of
-        'h' -> gameLoop $ movePointer (-1) game
-        'l' -> gameLoop $ movePointer 1    game
+        'h' -> makeHumanMove $ movePointer (-1) game
+        'l' -> makeHumanMove $ movePointer 1    game
         ' ' -> gameLoop $ dropDisc game
         'q' -> return ()
         _   -> gameLoop game
 
-endGame :: Disc -> IO ()
-endGame player = putStrLn . pad 1
-    $ playerName player ++ " player wins!"
+makeComputerMove :: Game -> IO ()
+makeComputerMove game = do
+    drawGame game { message = "Press space to accept computer move"
+                  , cursorCol = col }
+    waitForSpace
+    gameLoop game { gameTree = snd $ head nodes }
+    where Node _ nodes = gameTree game
+          col = snd . fst $ head nodes
+          waitForSpace :: IO ()
+          waitForSpace = do
+              chr <- getChar
+              unless (chr == ' ') waitForSpace
+
+endGame :: Game -> Disc -> IO ()
+endGame game player = drawGame
+    game { message = playerName player ++ " player wins!" }
     where playerName Red'  = "Red"
           playerName Blue' = "Blue"
 
@@ -74,9 +106,9 @@ main = do
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { redPlayer = Human
-                  , bluePlayer = Human
+                  , bluePlayer = Computer
+                  , message = ""
                   , gameTree = makeGameTree (6, 7) 4 startingPlayer
                   , cursorCol = 0 }
 
     showCursor
-
