@@ -42,9 +42,9 @@ dropDisc game = game { gameTree = newTree }
             <$> find (\node -> (snd . fst) node == cursorCol game) nodes
 
 gameLoop :: Game -> IO ()
-gameLoop game = case winner $ getPosition game of
-    Just a -> endGame game a
-    _      -> makePlayerMove game
+gameLoop game = let pos = getPosition game in case winner pos of
+    Just a -> endGameWin game a
+    _      -> if isFull pos then endGameTie game else makeNextMove game
 
 drawGame :: Game -> IO ()
 drawGame game = do
@@ -61,8 +61,8 @@ currentPlayer game = let
         Blue' -> bluePlayer game
     in player
 
-makePlayerMove :: Game -> IO ()
-makePlayerMove game = case currentPlayer game of
+makeNextMove :: Game -> IO ()
+makeNextMove game = case currentPlayer game of
     Human    -> makeHumanMove game
     Computer -> makeComputerMove game
 
@@ -91,8 +91,11 @@ makeComputerMove game = do
               chr <- getChar
               unless (chr == ' ') waitForSpace
 
-endGame :: Game -> Disc -> IO ()
-endGame game player = drawGame
+endGameTie :: Game -> IO ()
+endGameTie game = drawGame game { message = "It's a tie! " }
+
+endGameWin :: Game -> Disc -> IO ()
+endGameWin game player = drawGame
     game { message = playerName player ++ " player wins!" }
     where playerName Red'  = "Red"
           playerName Blue' = "Blue"

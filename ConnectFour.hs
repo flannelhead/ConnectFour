@@ -76,6 +76,9 @@ winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
           rTop = [lineLen-1..nRows-1]
           line = [0..lineLen-1]
 
+isFull :: Position -> Bool
+isFull (Position _ (Board _ _ vec)) = Nothing `notElem` vec
+
 makeGameTree :: BoardSize -> Int -> Turn -> GameTree
 makeGameTree size lineLen turn = Node firstPos $ nodes firstPos
     where firstPos = Position turn $ emptyBoard size lineLen
@@ -85,4 +88,3 @@ makeGameTree size lineLen turn = Node firstPos $ nodes firstPos
           gameTreeFromMove :: Position -> Move -> GameTree
           gameTreeFromMove pos move = Node newPos $ nodes newPos
             where newPos = makeMove pos move
-
