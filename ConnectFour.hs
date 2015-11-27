@@ -3,6 +3,7 @@ module ConnectFour where
 import qualified Data.Vector         as V
 import           Data.Maybe
 import           Data.List
+import           Data.Ord
 import           System.Console.ANSI
 
 data Player = Human | Computer deriving (Enum, Eq)
@@ -13,7 +14,7 @@ data Board = Board BoardSize Int (V.Vector (Maybe Player))
 data Position = Position Player Board
 -- (row, column)
 type Move = (Int, Int)
-data GameTree = Node Position [(Move, GameTree)]
+data GameTree = Node Move Position [GameTree]
 
 instance Show Player where
     show player = setSGRCode [SetColor Foreground Vivid $ color player] ++
@@ -78,12 +79,26 @@ isFull :: Position -> Bool
 isFull (Position _ (Board _ _ vec)) = Nothing `notElem` vec
 
 makeGameTree :: BoardSize -> Int -> Player -> GameTree
-makeGameTree size lineLen player = Node firstPos $ nodes firstPos
+makeGameTree size lineLen player = Node (0, 0) firstPos $ nodes firstPos
     where firstPos = Position player $ emptyBoard size lineLen
-          nodes :: Position -> [(Move, GameTree)]
-          nodes pos = map (\move -> (move, gameTreeFromMove pos move))
-            $ possibleMoves pos
+          nodes :: Position -> [GameTree]
+          nodes pos = if isJust $ winner pos then []
+              else map (gameTreeFromMove pos) $ possibleMoves pos
           gameTreeFromMove :: Position -> Move -> GameTree
-          gameTreeFromMove pos move = Node newPos $ nodes newPos
-            where newPos = makeMove pos move
+          gameTreeFromMove pos move = Node move newPos $ nodes newPos
+              where newPos = makeMove pos move
 
+evaluatePosition :: Position -> Player -> Int
+evaluatePosition pos player = maybe 0 (\a -> if a == player then 1 else -1)
+    $ winner pos
+
+minimax :: Int -> Player -> GameTree -> Int
+minimax 0     player (Node _ pos _)   = evaluatePosition pos player
+minimax _     player (Node _ pos [])  = evaluatePosition pos player
+minimax depth player (Node _ (Position player2 _) nodes) = minmax
+    $ map (minimax (depth - 1) player) nodes
+    where minmax = if player2 == player then maximum else minimum
+
+bestMove :: Int -> Player -> GameTree -> GameTree
+bestMove depth player (Node _ _ nodes) = maximumBy
+    (comparing $ minimax depth player) nodes

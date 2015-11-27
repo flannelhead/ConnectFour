@@ -8,11 +8,12 @@ import System.Random
 import ConnectFour
 
 data Game = Game { message    :: String
+                 , depth      :: Int
                  , gameTree   :: GameTree
                  , cursorCol  :: Int }
 
 getPosition :: Game -> Position
-getPosition game = let Node position _ = gameTree game in position
+getPosition game = let Node _ position _ = gameTree game in position
 
 instance Show Game where
     show game = let Position turn board = getPosition game in
@@ -36,9 +37,9 @@ boardSize game = let Position _ (Board bSize _ _) = getPosition game in bSize
 
 dropDisc :: Game -> Game
 dropDisc game = game { gameTree = newTree }
-    where tree@(Node _ nodes) = gameTree game
-          newTree = fromMaybe tree $ snd
-            <$> find (\node -> (snd . fst) node == cursorCol game) nodes
+    where tree@(Node _ _ nodes) = gameTree game
+          newTree = fromMaybe tree
+              $ find (\(Node move _ _) -> snd move == cursorCol game) nodes
 
 gameLoop :: Game -> IO ()
 gameLoop game = let pos = getPosition game in case winner pos of
@@ -77,9 +78,10 @@ makeComputerMove game = do
     drawGame game { message = "Press space to accept computer move"
                   , cursorCol = col }
     waitForSpace
-    gameLoop game { gameTree = snd $ head nodes }
-    where Node _ nodes = gameTree game
-          col = snd . fst $ head nodes
+    gameLoop game { gameTree = newTree }
+    where tree = gameTree game
+          newTree = bestMove (depth game) Computer tree
+          Node (_, col) _ _ = newTree
           waitForSpace :: IO ()
           waitForSpace = do
               chr <- getChar
@@ -90,8 +92,8 @@ endGameTie game = drawGame game { message = "It's a tie! " }
 
 endGameWin :: Game -> Player -> IO ()
 endGameWin game player = drawGame
-    game { message = "You " ++ outcome ++ "!" }
-    where outcome = if player == Human then "won" else "lost"
+    game { message = "You " ++ outcome ++ "!\n" }
+    where outcome = if player == Human then "win" else "lose"
 
 main :: IO ()
 main = do
@@ -111,8 +113,8 @@ main = do
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { message = ""
+                  , depth = 4
                   , gameTree = makeGameTree (6, 7) 4 startingPlayer
                   , cursorCol = 0 }
 
     showCursor
-
