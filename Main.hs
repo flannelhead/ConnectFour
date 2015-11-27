@@ -4,11 +4,10 @@ import Data.Maybe
 import System.IO
 import System.Console.ANSI
 import System.Random
+
 import ConnectFour
 
-data Game = Game { redPlayer  :: Player
-                 , bluePlayer :: Player
-                 , message    :: String
+data Game = Game { message    :: String
                  , gameTree   :: GameTree
                  , cursorCol  :: Int }
 
@@ -54,12 +53,7 @@ drawGame game = do
     hFlush stdout
 
 currentPlayer :: Game -> Player
-currentPlayer game = let
-    Position turn _ = getPosition game
-    player = case turn of
-        Red'  -> redPlayer game
-        Blue' -> bluePlayer game
-    in player
+currentPlayer game = let Position player _ = getPosition game in player
 
 makeNextMove :: Game -> IO ()
 makeNextMove game = case currentPlayer game of
@@ -94,11 +88,10 @@ makeComputerMove game = do
 endGameTie :: Game -> IO ()
 endGameTie game = drawGame game { message = "It's a tie! " }
 
-endGameWin :: Game -> Disc -> IO ()
+endGameWin :: Game -> Player -> IO ()
 endGameWin game player = drawGame
-    game { message = playerName player ++ " player wins!" }
-    where playerName Red'  = "Red"
-          playerName Blue' = "Blue"
+    game { message = "You " ++ outcome ++ "!" }
+    where outcome = if player == Human then "won" else "lost"
 
 main :: IO ()
 main = do
@@ -117,10 +110,9 @@ main = do
     _ <- getChar
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
-    gameLoop Game { redPlayer = Human
-                  , bluePlayer = Computer
-                  , message = ""
+    gameLoop Game { message = ""
                   , gameTree = makeGameTree (6, 7) 4 startingPlayer
                   , cursorCol = 0 }
 
     showCursor
+

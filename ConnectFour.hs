@@ -5,23 +5,21 @@ import           Data.Maybe
 import           Data.List
 import           System.Console.ANSI
 
-data Disc = Red' | Blue' deriving (Enum, Eq)
-type Turn = Disc
-data Player = Human | Computer
+data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
 -- board size, line length, board vector
-data Board = Board BoardSize Int (V.Vector (Maybe Disc))
-data Position = Position Turn Board
--- row, column
+data Board = Board BoardSize Int (V.Vector (Maybe Player))
+data Position = Position Player Board
+-- (row, column)
 type Move = (Int, Int)
 data GameTree = Node Position [(Move, GameTree)]
 
-instance Show Disc where
-    show disc = setSGRCode [SetColor Foreground Vivid $ color disc] ++
+instance Show Player where
+    show player = setSGRCode [SetColor Foreground Vivid $ color player] ++
         "●" ++ setSGRCode []
-        where color Red' = Red
-              color Blue' = Blue
+        where color Human    = Red
+              color Computer = Blue
 
 instance Show Board where
     show brd@(Board (nRows, nCols) _ _) = unlines . reverse
@@ -35,7 +33,7 @@ instance Show Board where
 boardIndex :: BoardSize -> (Int, Int) -> Int
 boardIndex (_, nCols) (row, col) = row * nCols + col
 
-discAt :: Board -> (Int, Int) -> Maybe Disc
+discAt :: Board -> (Int, Int) -> Maybe Player
 discAt (Board bSize _ vec) (row, col) = vec V.! boardIndex bSize (row, col)
 
 possibleMoves :: Position -> [Move]
@@ -53,14 +51,14 @@ emptyBoard :: BoardSize -> Int -> Board
 emptyBoard size@(rows, cols) lineLen =
     Board size lineLen $ V.replicate (rows * cols) Nothing
 
-nextTurn :: Turn -> Turn
-nextTurn Red' = Blue'
-nextTurn _    = Red'
+nextTurn :: Player -> Player
+nextTurn Human    = Computer
+nextTurn Computer = Human
 
-winner :: Position -> Maybe Disc
+winner :: Position -> Maybe Player
 winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
     $ mapMaybe foldLine allLines
-    where foldLine :: [(Int, Int)] -> Maybe Disc
+    where foldLine :: [(Int, Int)] -> Maybe Player
           foldLine ln = foldl1 acc $ map (discAt brd) ln
               where acc Nothing _ = Nothing
                     acc a       b = if a == b then a else Nothing
@@ -79,12 +77,13 @@ winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
 isFull :: Position -> Bool
 isFull (Position _ (Board _ _ vec)) = Nothing `notElem` vec
 
-makeGameTree :: BoardSize -> Int -> Turn -> GameTree
-makeGameTree size lineLen turn = Node firstPos $ nodes firstPos
-    where firstPos = Position turn $ emptyBoard size lineLen
+makeGameTree :: BoardSize -> Int -> Player -> GameTree
+makeGameTree size lineLen player = Node firstPos $ nodes firstPos
+    where firstPos = Position player $ emptyBoard size lineLen
           nodes :: Position -> [(Move, GameTree)]
           nodes pos = map (\move -> (move, gameTreeFromMove pos move))
             $ possibleMoves pos
           gameTreeFromMove :: Position -> Move -> GameTree
           gameTreeFromMove pos move = Node newPos $ nodes newPos
             where newPos = makeMove pos move
+
