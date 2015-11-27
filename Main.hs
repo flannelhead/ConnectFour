@@ -104,6 +104,14 @@ main = do
     hSetEcho stdin False
     hideCursor
 
+    clearScreen
+    setCursorPosition 0 0
+    putStrLn . pad 1 $ "Let's play Connect Four!\n\n\
+                       \Red player = you\nBlue player = computer\n\n\
+                       \Press any key to start"
+    hFlush stdout
+    _ <- getChar
+
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { redPlayer = Human
                   , bluePlayer = Computer
