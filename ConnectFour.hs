@@ -13,7 +13,7 @@ type BoardSize = (Int, Int)
 data Board = Board BoardSize Int (V.Vector (Maybe Player))
 data Position = Position Player Board
 -- (row, column)
-type Move = (Int, Int)
+type Move = Int
 data GameTree = Node Move Position [GameTree]
 
 instance Show Player where
@@ -38,15 +38,15 @@ discAt :: Board -> (Int, Int) -> Maybe Player
 discAt (Board bSize _ vec) (row, col) = vec V.! boardIndex bSize (row, col)
 
 possibleMoves :: Position -> [Move]
-possibleMoves (Position _ brd@(Board (_, nCols) _ _)) =
-    mapMaybe (\col -> (\row -> (row, col)) <$> freeRow brd col) [0..nCols-1]
-    where freeRow :: Board -> Int -> Maybe Int
-          freeRow brd2@(Board (nRows, _) _ _) col =
-            find (\row -> isNothing $ discAt brd2 (row, col)) [0..nRows-1]
+possibleMoves (Position _ brd@(Board (nRows, nCols) _ _)) =
+    filter (\col -> isNothing $ discAt brd (nRows - 1, col)) [0..nCols-1]
 
 makeMove :: Position -> Move -> Position
-makeMove (Position trn (Board bSize lineLen vec)) move = Position (nextTurn trn)
-    $ Board bSize lineLen $ vec V.// [(boardIndex bSize move, Just trn)]
+makeMove (Position trn brd@(Board bSize@(nRows, _) lineLen vec)) col =
+    Position (nextTurn trn) $ Board bSize lineLen
+    $ vec V.// [(boardIndex bSize (row, col), Just trn)]
+    where row = fromMaybe 0
+              $ find (\r -> isNothing $ discAt brd (r, col)) [0..nRows-1]
 
 emptyBoard :: BoardSize -> Int -> Board
 emptyBoard size@(rows, cols) lineLen =
@@ -60,7 +60,7 @@ winner :: Position -> Maybe Player
 winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
     $ mapMaybe foldLine allLines
     where foldLine :: [(Int, Int)] -> Maybe Player
-          foldLine ln = foldl1 acc $ map (discAt brd) ln
+          foldLine ln = foldl1' acc $ map (discAt brd) ln
               where acc Nothing _ = Nothing
                     acc a       b = if a == b then a else Nothing
           allLines = concat [vert, horz, diag1, diag2]
@@ -79,7 +79,7 @@ isFull :: Position -> Bool
 isFull (Position _ (Board _ _ vec)) = Nothing `notElem` vec
 
 makeGameTree :: BoardSize -> Int -> Player -> GameTree
-makeGameTree size lineLen player = Node (0, 0) firstPos $ nodes firstPos
+makeGameTree size lineLen player = Node 0 firstPos $ nodes firstPos
     where firstPos = Position player $ emptyBoard size lineLen
           nodes :: Position -> [GameTree]
           nodes pos = if isJust $ winner pos then []
@@ -88,17 +88,24 @@ makeGameTree size lineLen player = Node (0, 0) firstPos $ nodes firstPos
           gameTreeFromMove pos move = Node move newPos $ nodes newPos
               where newPos = makeMove pos move
 
-evaluatePosition :: Position -> Player -> Int
-evaluatePosition pos player = maybe 0 (\a -> if a == player then 1 else -1)
+evaluatePosition :: Position -> Int
+evaluatePosition pos = maybe 0 (\a -> if a == Computer then 1 else -1)
     $ winner pos
 
-minimax :: Int -> Player -> GameTree -> Int
-minimax 0     player (Node _ pos _)   = evaluatePosition pos player
-minimax _     player (Node _ pos [])  = evaluatePosition pos player
-minimax depth player (Node _ (Position player2 _) nodes) = minmax
-    $ map (minimax (depth - 1) player) nodes
-    where minmax = if player2 == player then maximum else minimum
+negamaxAB :: Int -> Int -> Int -> Int -> GameTree -> Int
+negamaxAB depth a b color (Node _ pos nodes)
+    | depth == 0 || null nodes = color * evaluatePosition pos
+    | otherwise = snd $ negamaxRec (a, -1) nodes
+    where negamaxRec :: (Int, Int) -> [GameTree] -> (Int, Int)
+          negamaxRec res             []     = res
+          negamaxRec (aOld, bestOld) (n:ns)
+              | aThis >= b = (aThis, bestThis)
+              | otherwise = negamaxRec (aThis, bestThis) ns
+              where
+                  vThis = (-1) * negamaxAB (depth - 1) (-b) (-aOld) (-color) n
+                  bestThis = max bestOld vThis
+                  aThis = max aOld bestThis
 
-bestMove :: Int -> Player -> GameTree -> GameTree
-bestMove depth player (Node _ _ nodes) = maximumBy
-    (comparing $ minimax depth player) nodes
+bestMove :: Int -> GameTree -> GameTree
+bestMove depth (Node _ _ nodes) = maximumBy
+    (comparing $ negate . negamaxAB depth (-1) 1 (-1)) nodes

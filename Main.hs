@@ -39,7 +39,7 @@ dropDisc :: Game -> Game
 dropDisc game = game { gameTree = newTree }
     where tree@(Node _ _ nodes) = gameTree game
           newTree = fromMaybe tree
-              $ find (\(Node move _ _) -> snd move == cursorCol game) nodes
+              $ find (\(Node move _ _) -> move == cursorCol game) nodes
 
 gameLoop :: Game -> IO ()
 gameLoop game = let pos = getPosition game in case winner pos of
@@ -80,8 +80,8 @@ makeComputerMove game = do
     waitForSpace
     gameLoop game { gameTree = newTree }
     where tree = gameTree game
-          newTree = bestMove (depth game) Computer tree
-          Node (_, col) _ _ = newTree
+          newTree = bestMove (depth game) tree
+          Node col _ _ = newTree
           waitForSpace :: IO ()
           waitForSpace = do
               chr <- getChar
@@ -113,7 +113,7 @@ main = do
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { message = ""
-                  , depth = 4
+                  , depth = 6
                   , gameTree = makeGameTree (6, 7) 4 startingPlayer
                   , cursorCol = 0 }
 
