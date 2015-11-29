@@ -5,15 +5,15 @@ import Data.Bits
 import Data.Maybe
 import Data.List
 import Data.Ord
+import qualified Data.Vector.Unboxed as V
 import System.Console.ANSI
 
 data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
 -- board size, line length, (human, computer)
-data Board = Board BoardSize Int (Word64, Word64)
+data Board = Board BoardSize Int (V.Vector Word64) (Word64, Word64)
 data Position = Position Player Board
--- (row, column)
 type Move = Int
 data GameTree = Node Move Position [GameTree]
 
@@ -24,7 +24,7 @@ instance Show Player where
               color Computer = Blue
 
 instance Show Board where
-    show brd@(Board (nRows, nCols) _ _) = unlines . reverse
+    show brd@(Board (nRows, nCols) _ _ _) = unlines . reverse
         $ ('┗' : replicate (2*nCols + 1) '━' ++ "┛")
           : map (\line -> "┃ " ++ line ++ "┃")
             [concat [showDisc $ discAt brd (row, col) | col <- [0..nCols-1]]
@@ -36,43 +36,44 @@ boardIndex :: BoardSize -> (Int, Int) -> Int
 boardIndex (_, nCols) (row, col) = row * nCols + col
 
 discAt :: Board -> (Int, Int) -> Maybe Player
-discAt (Board bSize _ (human, computer)) coord
+discAt (Board bSize _ _ (human, computer)) coord
     | testBit human myBit = Just Human
     | testBit computer myBit = Just Computer
     | otherwise = Nothing
     where myBit = boardIndex bSize coord
 
 possibleMoves :: Position -> [Move]
-possibleMoves (Position _ brd@(Board (nRows, nCols) _ _)) =
+possibleMoves (Position _ brd@(Board (nRows, nCols) _ _ _)) =
     filter (\col -> isNothing $ discAt brd (nRows - 1, col)) [0..nCols-1]
 
 makeMove :: Position -> Move -> Position
 makeMove (Position turn
-    (Board bSize@(nRows, _) lineLen (human, computer))) col =
-    Position (nextTurn turn) $ Board bSize lineLen newBoard
+    (Board bSize@(nRows, _) lineLen masks (human, computer))) col =
+    Position (nextTurn turn) $ Board bSize lineLen masks newBoard
     where newBoard = if turn == Computer then (human, setBit computer myBit)
                      else (setBit human myBit, computer)
           myBit = boardIndex bSize (freeRow, col)
-          freeRow = fromMaybe 0 $ find
-              (\row -> not $
-                 testBit human (boardIndex bSize (row, col))
-                 || testBit computer (boardIndex bSize (row, col))) [0..nRows-1]
+          freeRow = fromMaybe 0 $ find (\row -> not $
+              testBit human (boardIndex bSize (row, col))
+              || testBit computer (boardIndex bSize (row, col))) [0..nRows-1]
 
 emptyBoard :: BoardSize -> Int -> Board
-emptyBoard size lineLen = Board size lineLen (0, 0)
+emptyBoard size lineLen = Board size lineLen (lineMasks size lineLen) (0, 0)
 
 nextTurn :: Player -> Player
 nextTurn Human    = Computer
 nextTurn Computer = Human
 
-winner :: Position -> Maybe Player
-winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
-    $ mapMaybe foldLine allLines
-    where foldLine :: [(Int, Int)] -> Maybe Player
-          foldLine ln = foldl1' acc $ map (discAt brd) ln
-              where acc Nothing _ = Nothing
-                    acc a       b = if a == b then a else Nothing
-          allLines = concat [vert, horz, diag1, diag2]
+testMask :: Word64 -> Word64 -> Bool
+testMask a b = a .&. b `xor` b == 0
+
+coordsToMask :: BoardSize -> [(Int, Int)] -> Word64
+coordsToMask bSize coords = foldl' setBit 0 $ map (boardIndex bSize) coords
+
+lineMasks :: BoardSize -> Int -> V.Vector Word64
+lineMasks bSize@(nRows, nCols) lineLen = V.fromList
+    $ map (coordsToMask bSize) allLines
+    where allLines = concat [vert, horz, diag1, diag2]
           vert = [[(r + dl, c) | dl <- line] | r <- rBot, c <- cAll]
           horz = [[(r, c + dl) | dl <- line] | r <- rAll, c <- cLeft]
           diag1 = [[(r + dl, c + dl) | dl <- line] | r <- rBot, c <- cLeft]
@@ -84,10 +85,21 @@ winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
           rTop = [lineLen-1..nRows-1]
           line = [0..lineLen-1]
 
+winner :: Position -> Maybe Player
+winner (Position _ (Board _ _ masks (human, computer)))
+    | hasWinningLine human = Just Human
+    | hasWinningLine computer = Just Computer
+    | otherwise = Nothing
+    where hasWinningLine :: Word64 -> Bool
+          hasWinningLine board = V.any (testMask board) masks
+
+fullMask :: BoardSize -> Word64
+fullMask bSize@(nRows, nCols) = coordsToMask bSize
+    [(nRows-1, c) | c <- [0..nCols-1]]
+
 isFull :: Position -> Bool
-isFull (Position _ (Board bSize@(nRows, nCols) _ (occupied, _))) = foldl'
-    (\acc col -> acc && testBit occupied (boardIndex bSize (nRows-1, col)))
-    True [0..nCols-1]
+isFull (Position _ (Board bSize _ _ (human, computer)))
+    = testMask (human .|. computer) $ fullMask bSize
 
 makeGameTree :: BoardSize -> Int -> Player -> GameTree
 makeGameTree size lineLen player = Node 0 firstPos $ nodes firstPos

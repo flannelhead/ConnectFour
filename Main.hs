@@ -33,7 +33,7 @@ movePointer dx game = let col = cursorCol game + dx
                       in game { cursorCol = clamp 0 (nCols-1) col }
 
 boardSize :: Game -> BoardSize
-boardSize game = let Position _ (Board bSize _ _) = getPosition game in bSize
+boardSize game = let Position _ (Board bSize _ _ _) = getPosition game in bSize
 
 dropDisc :: Game -> Game
 dropDisc game = game { gameTree = newTree }
@@ -113,7 +113,7 @@ main = do
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { message = ""
-                  , depth = 6
+                  , depth = 8
                   , gameTree = makeGameTree (6, 7) 4 startingPlayer
                   , cursorCol = 0 }
 
