@@ -1,16 +1,17 @@
 module ConnectFour where
 
-import qualified Data.Vector         as V
-import           Data.Maybe
-import           Data.List
-import           Data.Ord
-import           System.Console.ANSI
+import Data.Word
+import Data.Bits
+import Data.Maybe
+import Data.List
+import Data.Ord
+import System.Console.ANSI
 
 data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
--- board size, line length, board vector
-data Board = Board BoardSize Int (V.Vector (Maybe Player))
+-- board size, line length, (human, computer)
+data Board = Board BoardSize Int (Word64, Word64)
 data Position = Position Player Board
 -- (row, column)
 type Move = Int
@@ -35,22 +36,30 @@ boardIndex :: BoardSize -> (Int, Int) -> Int
 boardIndex (_, nCols) (row, col) = row * nCols + col
 
 discAt :: Board -> (Int, Int) -> Maybe Player
-discAt (Board bSize _ vec) (row, col) = vec V.! boardIndex bSize (row, col)
+discAt (Board bSize _ (human, computer)) coord
+    | testBit human myBit = Just Human
+    | testBit computer myBit = Just Computer
+    | otherwise = Nothing
+    where myBit = boardIndex bSize coord
 
 possibleMoves :: Position -> [Move]
 possibleMoves (Position _ brd@(Board (nRows, nCols) _ _)) =
     filter (\col -> isNothing $ discAt brd (nRows - 1, col)) [0..nCols-1]
 
 makeMove :: Position -> Move -> Position
-makeMove (Position trn brd@(Board bSize@(nRows, _) lineLen vec)) col =
-    Position (nextTurn trn) $ Board bSize lineLen
-    $ vec V.// [(boardIndex bSize (row, col), Just trn)]
-    where row = fromMaybe 0
-              $ find (\r -> isNothing $ discAt brd (r, col)) [0..nRows-1]
+makeMove (Position turn
+    (Board bSize@(nRows, _) lineLen (human, computer))) col =
+    Position (nextTurn turn) $ Board bSize lineLen newBoard
+    where newBoard = if turn == Computer then (human, setBit computer myBit)
+                     else (setBit human myBit, computer)
+          myBit = boardIndex bSize (freeRow, col)
+          freeRow = fromMaybe 0 $ find
+              (\row -> not $
+                 testBit human (boardIndex bSize (row, col))
+                 || testBit computer (boardIndex bSize (row, col))) [0..nRows-1]
 
 emptyBoard :: BoardSize -> Int -> Board
-emptyBoard size@(rows, cols) lineLen =
-    Board size lineLen $ V.replicate (rows * cols) Nothing
+emptyBoard size lineLen = Board size lineLen (0, 0)
 
 nextTurn :: Player -> Player
 nextTurn Human    = Computer
@@ -76,7 +85,9 @@ winner (Position _ brd@(Board (nRows, nCols) lineLen _)) = listToMaybe
           line = [0..lineLen-1]
 
 isFull :: Position -> Bool
-isFull (Position _ (Board _ _ vec)) = Nothing `notElem` vec
+isFull (Position _ (Board bSize@(nRows, nCols) _ (occupied, _))) = foldl'
+    (\acc col -> acc && testBit occupied (boardIndex bSize (nRows-1, col)))
+    True [0..nCols-1]
 
 makeGameTree :: BoardSize -> Int -> Player -> GameTree
 makeGameTree size lineLen player = Node 0 firstPos $ nodes firstPos

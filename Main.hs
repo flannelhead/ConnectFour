@@ -92,7 +92,7 @@ endGameTie game = drawGame game { message = "It's a tie! " }
 
 endGameWin :: Game -> Player -> IO ()
 endGameWin game player = drawGame
-    game { message = "You " ++ outcome ++ "!\n" }
+    game { message = "You " ++ outcome ++ "!\n\n" }
     where outcome = if player == Human then "win" else "lose"
 
 main :: IO ()
