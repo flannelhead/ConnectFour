@@ -11,8 +11,8 @@ import System.Console.ANSI
 data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
--- board size, line length, (human, computer)
-data Board = Board BoardSize Int (V.Vector Word64) (Word64, Word64)
+-- board size, line masks, (human, computer)
+data Board = Board BoardSize (V.Vector Word64) (Word64, Word64)
 data Position = Position Player Board
 type Move = Int
 
@@ -23,7 +23,7 @@ instance Show Player where
               color Computer = Blue
 
 instance Show Board where
-    show brd@(Board (nRows, nCols) _ _ _) = unlines . reverse
+    show brd@(Board (nRows, nCols) _ _) = unlines . reverse
         $ ('┗' : replicate (2*nCols + 1) '━' ++ "┛")
           : map (\line -> "┃ " ++ line ++ "┃")
             [concat [showDisc $ discAt brd (row, col) | col <- [0..nCols-1]]
@@ -35,24 +35,24 @@ boardIndex :: BoardSize -> (Int, Int) -> Int
 boardIndex (_, nCols) (row, col) = row * nCols + col
 
 discAt :: Board -> (Int, Int) -> Maybe Player
-discAt (Board bSize _ _ (human, computer)) coord
+discAt (Board bSize _ (human, computer)) coord
     | testBit human myBit = Just Human
     | testBit computer myBit = Just Computer
     | otherwise = Nothing
     where myBit = boardIndex bSize coord
 
 possibleMoves :: Position -> [Move]
-possibleMoves (Position _ brd@(Board (nRows, nCols) _ _ _)) =
+possibleMoves (Position _ brd@(Board (nRows, nCols) _ _)) =
     filter (\col -> isNothing $ discAt brd (nRows - 1, col)) [0..nCols-1]
 
 orderedMoves :: Position -> [Move]
-orderedMoves pos@(Position _ (Board (_, nCols) _ _ _)) =
+orderedMoves pos@(Position _ (Board (_, nCols) _ _)) =
     sortBy (comparing $ \col -> abs (col - nCols `div` 2)) $ possibleMoves pos
 
 makeMove :: Position -> Move -> Position
 makeMove (Position turn
-    (Board bSize@(nRows, _) lineLen masks (human, computer))) col =
-    Position (nextTurn turn) $ Board bSize lineLen masks newBoard
+    (Board bSize@(nRows, _) masks (human, computer))) col =
+    Position (nextTurn turn) $ Board bSize masks newBoard
     where newBoard = if turn == Computer then (human, setBit computer myBit)
                      else (setBit human myBit, computer)
           myBit = boardIndex bSize (freeRow, col)
@@ -61,7 +61,7 @@ makeMove (Position turn
               || testBit computer (boardIndex bSize (row, col))) [0..nRows-1]
 
 emptyBoard :: BoardSize -> Int -> Board
-emptyBoard size lineLen = Board size lineLen (lineMasks size lineLen) (0, 0)
+emptyBoard size lineLen = Board size (lineMasks size lineLen) (0, 0)
 
 nextTurn :: Player -> Player
 nextTurn Human    = Computer
@@ -89,7 +89,7 @@ lineMasks bSize@(nRows, nCols) lineLen = V.fromList
           line = [0..lineLen-1]
 
 winner :: Position -> Maybe Player
-winner (Position _ (Board _ _ masks (human, computer)))
+winner (Position _ (Board _ masks (human, computer)))
     | hasWinningLine human = Just Human
     | hasWinningLine computer = Just Computer
     | otherwise = Nothing
@@ -101,7 +101,7 @@ fullMask bSize@(nRows, nCols) = coordsToMask bSize
     [(nRows-1, c) | c <- [0..nCols-1]]
 
 isFull :: Position -> Bool
-isFull (Position _ (Board bSize _ _ (human, computer)))
+isFull (Position _ (Board bSize _ (human, computer)))
     = testMask (human .|. computer) $ fullMask bSize
 
 evaluatePosition :: Position -> Int
