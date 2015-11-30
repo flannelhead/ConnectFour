@@ -15,7 +15,6 @@ type BoardSize = (Int, Int)
 data Board = Board BoardSize Int (V.Vector Word64) (Word64, Word64)
 data Position = Position Player Board
 type Move = Int
-data GameTree = Node Move Position [GameTree]
 
 instance Show Player where
     show player = setSGRCode [SetColor Foreground Vivid $ color player] ++
@@ -45,6 +44,10 @@ discAt (Board bSize _ _ (human, computer)) coord
 possibleMoves :: Position -> [Move]
 possibleMoves (Position _ brd@(Board (nRows, nCols) _ _ _)) =
     filter (\col -> isNothing $ discAt brd (nRows - 1, col)) [0..nCols-1]
+
+orderedMoves :: Position -> [Move]
+orderedMoves pos@(Position _ (Board (_, nCols) _ _ _)) =
+    sortBy (comparing $ \col -> abs (col - nCols `div` 2)) $ possibleMoves pos
 
 makeMove :: Position -> Move -> Position
 makeMove (Position turn
@@ -101,34 +104,27 @@ isFull :: Position -> Bool
 isFull (Position _ (Board bSize _ _ (human, computer)))
     = testMask (human .|. computer) $ fullMask bSize
 
-makeGameTree :: BoardSize -> Int -> Player -> GameTree
-makeGameTree bSize@(_, nCols) lineLen player = Node 0 firstPos $ nodes firstPos
-    where firstPos = Position player $ emptyBoard bSize lineLen
-          nodes :: Position -> [GameTree]
-          nodes pos = if isJust $ winner pos then []
-              else map (gameTreeFromMove pos) $ (sortMoves . possibleMoves) pos
-          gameTreeFromMove :: Position -> Move -> GameTree
-          gameTreeFromMove pos move = Node move newPos $ nodes newPos
-              where newPos = makeMove pos move
-          sortMoves :: [Int] -> [Int]
-          sortMoves = sortBy (comparing
-              $ \col -> abs (col - nCols `div` 2))
-
 evaluatePosition :: Position -> Int
 evaluatePosition pos = maybe 0 (\a -> if a == Computer then 1 else -1)
     $ winner pos
 
-negamax :: Int -> Int -> Int -> Int -> GameTree -> Int
-negamax depth a b color (Node _ pos nodes)
+children :: Position -> [Position]
+children pos = case winner pos of
+    Just _ -> []
+    _      -> map (makeMove pos) $ orderedMoves pos
+
+negamax :: Int -> Int -> Int -> Int -> Position -> Int
+negamax depth a b color pos
     | depth == 0 || null nodes = color * evaluatePosition pos
     | otherwise = alphaBeta a (-1) nodes
-    where alphaBeta :: Int -> Int -> [GameTree] -> Int
+    where nodes = children pos
+          alphaBeta :: Int -> Int -> [Position] -> Int
           alphaBeta _  val [] = val
-          alphaBeta a2 val (n:ns)
-              | val >= b || null ns = val
-              | otherwise = alphaBeta (max a2 newVal) (max val newVal) ns
-              where newVal = (-1) * negamax (depth-1) (-b) (-a2) (-color) n
+          alphaBeta a2 val (p:ps)
+              | val >= b || null ps = val
+              | otherwise = alphaBeta (max a2 newVal) (max val newVal) ps
+              where newVal = (-1) * negamax (depth-1) (-b) (-a2) (-color) p
 
-bestMove :: Int -> GameTree -> GameTree
-bestMove depth (Node _ _ nodes) = minimumBy
-    (comparing $ negamax depth (-1) 1 (-1)) nodes
+bestMove :: Int -> Position -> (Position, Move)
+bestMove depth pos = minimumBy (comparing $ negamax depth (-1) 1 (-1) . fst)
+    $ map (\move -> (makeMove pos move, move)) $ orderedMoves pos

@@ -1,6 +1,4 @@
 import Control.Monad
-import Data.List
-import Data.Maybe
 import System.IO
 import System.Console.ANSI
 import System.Random
@@ -9,14 +7,11 @@ import ConnectFour
 
 data Game = Game { message    :: String
                  , depth      :: Int
-                 , gameTree   :: GameTree
+                 , position   :: Position
                  , cursorCol  :: Int }
 
-getPosition :: Game -> Position
-getPosition game = let Node _ position _ = gameTree game in position
-
 instance Show Game where
-    show game = let Position turn board = getPosition game in
+    show game = let Position turn board = position game in
         replicate (2 + 2 * cursorCol game) ' ' ++ show turn ++ "\n"
         ++ show board ++ "\n" ++ message game
 
@@ -33,16 +28,16 @@ movePointer dx game = let col = cursorCol game + dx
                       in game { cursorCol = clamp 0 (nCols-1) col }
 
 boardSize :: Game -> BoardSize
-boardSize game = let Position _ (Board bSize _ _ _) = getPosition game in bSize
+boardSize game = let Position _ (Board bSize _ _ _) = position game in bSize
 
 dropDisc :: Game -> Game
-dropDisc game = game { gameTree = newTree }
-    where tree@(Node _ _ nodes) = gameTree game
-          newTree = fromMaybe tree
-              $ find (\(Node move _ _) -> move == cursorCol game) nodes
+dropDisc game
+    | cursorCol game `elem` possibleMoves (position game) =
+        game { position = makeMove (position game) (cursorCol game) }
+    | otherwise = game
 
 gameLoop :: Game -> IO ()
-gameLoop game = let pos = getPosition game in case winner pos of
+gameLoop game = let pos = position game in case winner pos of
     Just a -> endGameWin game a
     _      -> if isFull pos then endGameTie game else makeNextMove game
 
@@ -54,7 +49,7 @@ drawGame game = do
     hFlush stdout
 
 currentPlayer :: Game -> Player
-currentPlayer game = let Position player _ = getPosition game in player
+currentPlayer game = let Position player _ = position game in player
 
 makeNextMove :: Game -> IO ()
 makeNextMove game = case currentPlayer game of
@@ -78,10 +73,8 @@ makeComputerMove game = do
     drawGame game { message = "Press space to accept computer move"
                   , cursorCol = col }
     waitForSpace
-    gameLoop game { gameTree = newTree }
-    where tree = gameTree game
-          newTree = bestMove (depth game) tree
-          Node col _ _ = newTree
+    gameLoop game { position = newPos }
+    where (newPos, col) = bestMove (depth game) $ position game
           waitForSpace :: IO ()
           waitForSpace = do
               chr <- getChar
@@ -114,7 +107,7 @@ main = do
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { message = ""
                   , depth = 8
-                  , gameTree = makeGameTree (6, 7) 4 startingPlayer
+                  , position = Position startingPlayer $ emptyBoard (6, 7) 4
                   , cursorCol = 0 }
 
     showCursor
