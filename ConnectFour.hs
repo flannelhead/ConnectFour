@@ -125,7 +125,7 @@ negamax depth a b color (Node _ pos nodes)
     where alphaBeta :: Int -> Int -> [GameTree] -> Int
           alphaBeta _  val [] = val
           alphaBeta a2 val (n:ns)
-              | val >= b || null ns = a2
+              | val >= b || null ns = val
               | otherwise = alphaBeta (max a2 newVal) (max val newVal) ns
               where newVal = (-1) * negamax (depth-1) (-b) (-a2) (-color) n
 
