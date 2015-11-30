@@ -11,7 +11,7 @@ import System.Console.ANSI
 data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
--- board size, line masks, (human, computer)
+-- board size, line masks, (human discs, computer discs)
 data Board = Board BoardSize (V.Vector Word64) (Word64, Word64)
 data Position = Position Player Board
 type Move = Int
@@ -93,20 +93,13 @@ winner (Position _ (Board _ masks (human, computer)))
     | hasWinningLine human = Just Human
     | hasWinningLine computer = Just Computer
     | otherwise = Nothing
-    where hasWinningLine :: Word64 -> Bool
-          hasWinningLine board = V.any (testMask board) masks
-
-fullMask :: BoardSize -> Word64
-fullMask bSize@(nRows, nCols) = coordsToMask bSize
-    [(nRows-1, c) | c <- [0..nCols-1]]
+    where hasWinningLine board = V.any (testMask board) masks
 
 isFull :: Position -> Bool
-isFull (Position _ (Board bSize _ (human, computer)))
-    = testMask (human .|. computer) $ fullMask bSize
+isFull pos = null $ possibleMoves pos
 
 evaluatePosition :: Position -> Int
-evaluatePosition pos = maybe 0 (\a -> if a == Computer then 1 else -1)
-    $ winner pos
+evaluatePosition pos = maybe 0 (\a -> if a == Human then -1 else 1) $ winner pos
 
 children :: Position -> [Position]
 children pos = case winner pos of
