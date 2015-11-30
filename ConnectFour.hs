@@ -53,8 +53,8 @@ makeMove (Position turn
     where newBoard = if turn == Computer then (human, setBit computer myBit)
                      else (setBit human myBit, computer)
           myBit = boardIndex bSize (freeRow, col)
-          freeRow = fromMaybe 0 $ find (\row -> not $
-              testBit human (boardIndex bSize (row, col))
+          freeRow = fromMaybe 0 $ find (\row -> not
+              $ testBit human (boardIndex bSize (row, col))
               || testBit computer (boardIndex bSize (row, col))) [0..nRows-1]
 
 emptyBoard :: BoardSize -> Int -> Board
@@ -102,21 +102,24 @@ isFull (Position _ (Board bSize _ _ (human, computer)))
     = testMask (human .|. computer) $ fullMask bSize
 
 makeGameTree :: BoardSize -> Int -> Player -> GameTree
-makeGameTree size lineLen player = Node 0 firstPos $ nodes firstPos
-    where firstPos = Position player $ emptyBoard size lineLen
+makeGameTree bSize@(_, nCols) lineLen player = Node 0 firstPos $ nodes firstPos
+    where firstPos = Position player $ emptyBoard bSize lineLen
           nodes :: Position -> [GameTree]
           nodes pos = if isJust $ winner pos then []
-              else map (gameTreeFromMove pos) $ possibleMoves pos
+              else map (gameTreeFromMove pos) $ (sortMoves . possibleMoves) pos
           gameTreeFromMove :: Position -> Move -> GameTree
           gameTreeFromMove pos move = Node move newPos $ nodes newPos
               where newPos = makeMove pos move
+          sortMoves :: [Int] -> [Int]
+          sortMoves = sortBy (comparing
+              $ \col -> abs (col - nCols `div` 2))
 
 evaluatePosition :: Position -> Int
 evaluatePosition pos = maybe 0 (\a -> if a == Computer then 1 else -1)
     $ winner pos
 
-negamaxAB :: Int -> Int -> Int -> Int -> GameTree -> Int
-negamaxAB depth a b color (Node _ pos nodes)
+negamax :: Int -> Int -> Int -> Int -> GameTree -> Int
+negamax depth a b color (Node _ pos nodes)
     | depth == 0 || null nodes = color * evaluatePosition pos
     | otherwise = snd $ negamaxRec (a, -1) nodes
     where negamaxRec :: (Int, Int) -> [GameTree] -> (Int, Int)
@@ -125,10 +128,10 @@ negamaxAB depth a b color (Node _ pos nodes)
               | aThis >= b = (aThis, bestThis)
               | otherwise = negamaxRec (aThis, bestThis) ns
               where
-                  vThis = (-1) * negamaxAB (depth - 1) (-b) (-aOld) (-color) n
+                  vThis = (-1) * negamax (depth - 1) (-b) (-aOld) (-color) n
                   bestThis = max bestOld vThis
                   aThis = max aOld bestThis
 
 bestMove :: Int -> GameTree -> GameTree
-bestMove depth (Node _ _ nodes) = maximumBy
-    (comparing $ negate . negamaxAB depth (-1) 1 (-1)) nodes
+bestMove depth (Node _ _ nodes) = minimumBy
+    (comparing $ negamax depth (-1) 1 (-1)) nodes
