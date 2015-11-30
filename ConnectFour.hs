@@ -121,16 +121,13 @@ evaluatePosition pos = maybe 0 (\a -> if a == Computer then 1 else -1)
 negamax :: Int -> Int -> Int -> Int -> GameTree -> Int
 negamax depth a b color (Node _ pos nodes)
     | depth == 0 || null nodes = color * evaluatePosition pos
-    | otherwise = snd $ negamaxRec (a, -1) nodes
-    where negamaxRec :: (Int, Int) -> [GameTree] -> (Int, Int)
-          negamaxRec res             []     = res
-          negamaxRec (aOld, bestOld) (n:ns)
-              | aThis >= b = (aThis, bestThis)
-              | otherwise = negamaxRec (aThis, bestThis) ns
-              where
-                  vThis = (-1) * negamax (depth - 1) (-b) (-aOld) (-color) n
-                  bestThis = max bestOld vThis
-                  aThis = max aOld bestThis
+    | otherwise = alphaBeta a (-1) nodes
+    where alphaBeta :: Int -> Int -> [GameTree] -> Int
+          alphaBeta _  val [] = val
+          alphaBeta a2 val (n:ns)
+              | val >= b || null ns = a2
+              | otherwise = alphaBeta (max a2 newVal) (max val newVal) ns
+              where newVal = (-1) * negamax (depth-1) (-b) (-a2) (-color) n
 
 bestMove :: Int -> GameTree -> GameTree
 bestMove depth (Node _ _ nodes) = minimumBy
