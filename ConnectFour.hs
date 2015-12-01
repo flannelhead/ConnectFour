@@ -1,3 +1,5 @@
+{-# LANGUAGE InstanceSigs #-}
+
 module ConnectFour where
 
 import Data.Word
@@ -13,10 +15,10 @@ import Negamax
 data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
--- board size, line masks, (human discs, computer discs)
+-- board size, line masks, human discs, computer discs
 data Board = Board BoardSize (V.Vector Word64) Word64 Word64
-data Position = Position Player Board
 type Move = Int
+data Position = Position Move Player Board
 
 instance GamePosition Position where
     evaluate pos = maybe 0 (\a -> if a == Human then -1 else 1) $ winner pos
@@ -50,16 +52,12 @@ discAt (Board bSize _ human computer) coord
     where myBit = boardIndex bSize coord
 
 possibleMoves :: Position -> [Move]
-possibleMoves (Position _ brd@(Board (nRows, nCols) _ _ _)) =
+possibleMoves (Position _ _ brd@(Board (nRows, nCols) _ _ _)) =
     filter (\col -> isNothing $ discAt brd (nRows - 1, col)) [0..nCols-1]
 
-orderedMoves :: Position -> [Move]
-orderedMoves pos@(Position _ (Board (_, nCols) _ _ _)) =
-    sortBy (comparing $ \col -> abs (col - nCols `div` 2)) $ possibleMoves pos
-
 makeMove :: Position -> Move -> Position
-makeMove (Position turn (Board bSize@(nRows, _) masks human computer)) col =
-    Position (nextTurn turn) newBoard
+makeMove (Position _ turn (Board bSize@(nRows, _) masks human computer)) col =
+    Position col (nextTurn turn) newBoard
     where newBoard = if turn == Computer then
                           makeNewBoard human $ setBit computer myBit
                      else makeNewBoard (setBit human myBit) computer
@@ -98,7 +96,7 @@ lineMasks bSize@(nRows, nCols) lineLen = V.fromList
           line  = [0..lineLen-1]
 
 winner :: Position -> Maybe Player
-winner (Position _ (Board _ masks human computer))
+winner (Position _ _ (Board _ masks human computer))
     | hasWinningLine human = Just Human
     | hasWinningLine computer = Just Computer
     | otherwise = Nothing
@@ -107,8 +105,7 @@ winner (Position _ (Board _ masks human computer))
 isFull :: Position -> Bool
 isFull pos = null $ possibleMoves pos
 
-bestMove :: Int -> Position -> (Position, Move)
-bestMove depth pos = minimumBy
-    (comparing $ negamax depth (-1/0.0) (1/0.0) (-1) . fst)
-    $ map (\move -> (makeMove pos move, move)) $ orderedMoves pos
+orderedMoves :: Position -> [Move]
+orderedMoves pos@(Position _ _ (Board (_, nCols) _ _ _)) = sortBy
+    (comparing $ \col -> abs (col - nCols `div` 2)) $ possibleMoves pos
 

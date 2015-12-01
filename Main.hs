@@ -6,6 +6,7 @@ import System.Console.ANSI
 import System.Random
 
 import ConnectFour
+import Negamax
 
 data Game = Game { message    :: String
                  , depth      :: Int
@@ -13,7 +14,7 @@ data Game = Game { message    :: String
                  , cursorCol  :: !Int }
 
 instance Show Game where
-    show game = let Position turn board = position game in
+    show game = let Position _ turn board = position game in
         replicate (2 + 2 * cursorCol game) ' ' ++ show turn ++ "\n"
         ++ show board ++ "\n" ++ message game
 
@@ -30,7 +31,7 @@ movePointer dx game = let col = cursorCol game + dx
                       in game { cursorCol = clamp 0 (nCols-1) col }
 
 boardSize :: Game -> BoardSize
-boardSize game = let Position _ (Board bSize _ _ _) = position game in bSize
+boardSize game = let Position _ _ (Board bSize _ _ _) = position game in bSize
 
 dropDisc :: Game -> Game
 dropDisc game
@@ -51,7 +52,7 @@ drawGame !game = do
     hFlush stdout
 
 currentPlayer :: Game -> Player
-currentPlayer game = let Position player _ = position game in player
+currentPlayer game = let Position _ player _ = position game in player
 
 makeNextMove :: Game -> IO ()
 makeNextMove game = case currentPlayer game of
@@ -77,7 +78,8 @@ makeComputerMove game = do
                   , cursorCol = col }
     waitForSpace
     gameLoop game { position = newPos }
-    where (newPos, col) = bestMove (depth game) $ position game
+    where newPos@(Position col _ _) = bestNextPosition (depth game)
+              $ position game
           waitForSpace :: IO ()
           waitForSpace = do
               chr <- getChar
@@ -109,5 +111,5 @@ main = do
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { message = ""
                   , depth = 9
-                  , position = Position startingPlayer $ emptyBoard (6, 7) 4
+                  , position = Position 0 startingPlayer $ emptyBoard (6, 7) 4
                   , cursorCol = 0 }
