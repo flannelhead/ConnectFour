@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 import Control.Monad
 import System.IO
 import System.Console.ANSI
@@ -8,7 +10,7 @@ import ConnectFour
 data Game = Game { message    :: String
                  , depth      :: Int
                  , position   :: Position
-                 , cursorCol  :: Int }
+                 , cursorCol  :: !Int }
 
 instance Show Game where
     show game = let Position turn board = position game in
@@ -42,7 +44,7 @@ gameLoop game = let pos = position game in case winner pos of
     _      -> if isFull pos then endGameTie game else makeNextMove game
 
 drawGame :: Game -> IO ()
-drawGame game = do
+drawGame !game = do
     clearScreen
     setCursorPosition 0 0
     putStr . pad 1 . show $ game
@@ -70,6 +72,7 @@ makeHumanMove game = do
 
 makeComputerMove :: Game -> IO ()
 makeComputerMove game = do
+    drawGame game { message = "The computer is pondering..." }
     drawGame game { message = "Press space to accept computer move"
                   , cursorCol = col }
     waitForSpace
@@ -93,7 +96,7 @@ main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stdin NoBuffering
     hSetEcho stdin False
-    hideCursor
+    --hideCursor
 
     clearScreen
     setCursorPosition 0 0
@@ -110,4 +113,4 @@ main = do
                   , position = Position startingPlayer $ emptyBoard (6, 7) 4
                   , cursorCol = 0 }
 
-    showCursor
+    --showCursor

@@ -71,5 +71,6 @@ executable ConnectFour
   ghc-options:         -Wall
                        -O2
                        -threaded
+                       -funbox-strict-fields
                        -fprof-auto
                        -rtsopts

@@ -54,7 +54,7 @@ makeMove (Position turn
     (Board bSize@(nRows, _) masks human computer)) col =
     Position (nextTurn turn) newBoard
     where newBoard = if turn == Computer then
-                        makeNewBoard human $ setBit computer myBit
+                          makeNewBoard human $ setBit computer myBit
                      else makeNewBoard (setBit human myBit) computer
           makeNewBoard = Board bSize masks
           myBit = boardIndex bSize (freeRow, col)
