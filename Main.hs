@@ -28,7 +28,7 @@ movePointer dx game = let col = cursorCol game + dx
                       in game { cursorCol = clamp 0 (nCols-1) col }
 
 boardSize :: Game -> BoardSize
-boardSize game = let Position _ (Board bSize _ _) = position game in bSize
+boardSize game = let Position _ (Board bSize _ _ _) = position game in bSize
 
 dropDisc :: Game -> Game
 dropDisc game
@@ -106,7 +106,7 @@ main = do
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
     gameLoop Game { message = ""
-                  , depth = 8
+                  , depth = 9
                   , position = Position startingPlayer $ emptyBoard (6, 7) 4
                   , cursorCol = 0 }
 

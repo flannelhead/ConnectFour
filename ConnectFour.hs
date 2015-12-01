@@ -12,7 +12,7 @@ data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
 -- board size, line masks, (human discs, computer discs)
-data Board = Board BoardSize (V.Vector Word64) (Word64, Word64)
+data Board = Board BoardSize (V.Vector Word64) Word64 Word64
 data Position = Position Player Board
 type Move = Int
 
@@ -23,7 +23,7 @@ instance Show Player where
               color Computer = Blue
 
 instance Show Board where
-    show brd@(Board (nRows, nCols) _ _) = unlines . reverse
+    show brd@(Board (nRows, nCols) _ _ _) = unlines . reverse
         $ ('┗' : replicate (2*nCols + 1) '━' ++ "┛")
           : map (\line -> "┃ " ++ line ++ "┃")
             [concat [showDisc $ discAt brd (row, col) | col <- [0..nCols-1]]
@@ -35,33 +35,35 @@ boardIndex :: BoardSize -> (Int, Int) -> Int
 boardIndex (_, nCols) (row, col) = row * nCols + col
 
 discAt :: Board -> (Int, Int) -> Maybe Player
-discAt (Board bSize _ (human, computer)) coord
+discAt (Board bSize _ human computer) coord
     | testBit human myBit = Just Human
     | testBit computer myBit = Just Computer
     | otherwise = Nothing
     where myBit = boardIndex bSize coord
 
 possibleMoves :: Position -> [Move]
-possibleMoves (Position _ brd@(Board (nRows, nCols) _ _)) =
+possibleMoves (Position _ brd@(Board (nRows, nCols) _ _ _)) =
     filter (\col -> isNothing $ discAt brd (nRows - 1, col)) [0..nCols-1]
 
 orderedMoves :: Position -> [Move]
-orderedMoves pos@(Position _ (Board (_, nCols) _ _)) =
+orderedMoves pos@(Position _ (Board (_, nCols) _ _ _)) =
     sortBy (comparing $ \col -> abs (col - nCols `div` 2)) $ possibleMoves pos
 
 makeMove :: Position -> Move -> Position
 makeMove (Position turn
-    (Board bSize@(nRows, _) masks (human, computer))) col =
-    Position (nextTurn turn) $ Board bSize masks newBoard
-    where newBoard = if turn == Computer then (human, setBit computer myBit)
-                     else (setBit human myBit, computer)
+    (Board bSize@(nRows, _) masks human computer)) col =
+    Position (nextTurn turn) newBoard
+    where newBoard = if turn == Computer then
+                        makeNewBoard human $ setBit computer myBit
+                     else makeNewBoard (setBit human myBit) computer
+          makeNewBoard = Board bSize masks
           myBit = boardIndex bSize (freeRow, col)
           freeRow = fromMaybe 0 $ find (\row -> not
               $ testBit human (boardIndex bSize (row, col))
               || testBit computer (boardIndex bSize (row, col))) [0..nRows-1]
 
 emptyBoard :: BoardSize -> Int -> Board
-emptyBoard size lineLen = Board size (lineMasks size lineLen) (0, 0)
+emptyBoard size lineLen = Board size (lineMasks size lineLen) 0 0
 
 nextTurn :: Player -> Player
 nextTurn Human    = Computer
@@ -89,7 +91,7 @@ lineMasks bSize@(nRows, nCols) lineLen = V.fromList
           line = [0..lineLen-1]
 
 winner :: Position -> Maybe Player
-winner (Position _ (Board _ masks (human, computer)))
+winner (Position _ (Board _ masks human computer))
     | hasWinningLine human = Just Human
     | hasWinningLine computer = Just Computer
     | otherwise = Nothing
@@ -116,7 +118,7 @@ negamax depth a b color pos
           alphaBeta a2 val (p:ps)
               | val >= b || null ps = val
               | otherwise = alphaBeta (max a2 newVal) (max val newVal) ps
-              where newVal = (-1) * negamax (depth-1) (-b) (-a2) (-color) p
+              where newVal = -negamax (depth-1) (-b) (-a2) (-color) p
 
 bestMove :: Int -> Position -> (Position, Move)
 bestMove depth pos = minimumBy (comparing $ negamax depth (-1) 1 (-1) . fst)
