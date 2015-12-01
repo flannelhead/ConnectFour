@@ -96,7 +96,6 @@ main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stdin NoBuffering
     hSetEcho stdin False
-    --hideCursor
 
     clearScreen
     setCursorPosition 0 0
@@ -112,5 +111,3 @@ main = do
                   , depth = 9
                   , position = Position startingPlayer $ emptyBoard (6, 7) 4
                   , cursorCol = 0 }
-
-    --showCursor
