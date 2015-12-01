@@ -1,5 +1,3 @@
-{-# LANGUAGE InstanceSigs #-}
-
 module ConnectFour where
 
 import Data.Word
