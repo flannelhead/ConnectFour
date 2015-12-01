@@ -8,6 +8,8 @@ import Data.Ord
 import qualified Data.Vector.Unboxed as V
 import System.Console.ANSI
 
+import Negamax
+
 data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
@@ -15,6 +17,12 @@ type BoardSize = (Int, Int)
 data Board = Board BoardSize (V.Vector Word64) Word64 Word64
 data Position = Position Player Board
 type Move = Int
+
+instance GamePosition Position where
+    evaluate pos = maybe 0 (\a -> if a == Human then -1 else 1) $ winner pos
+    children pos = case winner pos of
+        Just _ -> []
+        _      -> map (makeMove pos) $ orderedMoves pos
 
 instance Show Player where
     show player = setSGRCode [SetColor Foreground Vivid $ color player] ++
@@ -50,8 +58,7 @@ orderedMoves pos@(Position _ (Board (_, nCols) _ _ _)) =
     sortBy (comparing $ \col -> abs (col - nCols `div` 2)) $ possibleMoves pos
 
 makeMove :: Position -> Move -> Position
-makeMove (Position turn
-    (Board bSize@(nRows, _) masks human computer)) col =
+makeMove (Position turn (Board bSize@(nRows, _) masks human computer)) col =
     Position (nextTurn turn) newBoard
     where newBoard = if turn == Computer then
                           makeNewBoard human $ setBit computer myBit
@@ -79,16 +86,16 @@ lineMasks :: BoardSize -> Int -> V.Vector Word64
 lineMasks bSize@(nRows, nCols) lineLen = V.fromList
     $ map (coordsToMask bSize) allLines
     where allLines = concat [vert, horz, diag1, diag2]
-          vert = [[(r + dl, c) | dl <- line] | r <- rBot, c <- cAll]
-          horz = [[(r, c + dl) | dl <- line] | r <- rAll, c <- cLeft]
+          vert  = [[(r + dl, c) | dl <- line] | r <- rBot, c <- cAll]
+          horz  = [[(r, c + dl) | dl <- line] | r <- rAll, c <- cLeft]
           diag1 = [[(r + dl, c + dl) | dl <- line] | r <- rBot, c <- cLeft]
           diag2 = [[(r - dl, c + dl) | dl <- line] | r <- rTop, c <- cLeft]
-          cAll = [0..nCols-1]
+          cAll  = [0..nCols-1]
           cLeft = [0..nCols-lineLen]
-          rAll = [0..nRows-1]
-          rBot = [0..nRows-lineLen]
-          rTop = [lineLen-1..nRows-1]
-          line = [0..lineLen-1]
+          rAll  = [0..nRows-1]
+          rBot  = [0..nRows-lineLen]
+          rTop  = [lineLen-1..nRows-1]
+          line  = [0..lineLen-1]
 
 winner :: Position -> Maybe Player
 winner (Position _ (Board _ masks human computer))
@@ -100,26 +107,8 @@ winner (Position _ (Board _ masks human computer))
 isFull :: Position -> Bool
 isFull pos = null $ possibleMoves pos
 
-evaluatePosition :: Position -> Int
-evaluatePosition pos = maybe 0 (\a -> if a == Human then -1 else 1) $ winner pos
-
-children :: Position -> [Position]
-children pos = case winner pos of
-    Just _ -> []
-    _      -> map (makeMove pos) $ orderedMoves pos
-
-negamax :: Int -> Int -> Int -> Int -> Position -> Int
-negamax depth a b color pos
-    | depth == 0 || null nodes = color * evaluatePosition pos
-    | otherwise = alphaBeta a (-1) nodes
-    where nodes = children pos
-          alphaBeta :: Int -> Int -> [Position] -> Int
-          alphaBeta _  val [] = val
-          alphaBeta a2 val (p:ps)
-              | val >= b || null ps = val
-              | otherwise = alphaBeta (max a2 newVal) (max val newVal) ps
-              where newVal = -negamax (depth-1) (-b) (-a2) (-color) p
-
 bestMove :: Int -> Position -> (Position, Move)
-bestMove depth pos = minimumBy (comparing $ negamax depth (-1) 1 (-1) . fst)
+bestMove depth pos = minimumBy
+    (comparing $ negamax depth (-1/0.0) (1/0.0) (-1) . fst)
     $ map (\move -> (makeMove pos move, move)) $ orderedMoves pos
+
