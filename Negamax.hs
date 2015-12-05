@@ -1,5 +1,7 @@
 module Negamax where
 
+import Control.Monad
+
 class GamePosition a where
     -- Given a position, list possible next positions sorted by the likelihood
     -- they will be good moves
@@ -13,16 +15,32 @@ class GamePosition a where
 negamax :: GamePosition a => Int -> Float -> Float -> Int -> a -> Float
 negamax depth a b color pos
     | depth == 0 || null nodes = fromIntegral color * evaluate pos
-    | otherwise = alphaBeta depth a b color (-1/0) nodes
+    | otherwise = alphaBeta depth a b color nodes
     where nodes = children pos
 
-alphaBeta :: GamePosition a =>
-    Int -> Float -> Float -> Int -> Float -> [a] -> Float
-alphaBeta _ _ _ _ val [] = val
-alphaBeta depth a b color val (p:ps)
-    | val >= b = val
-    | otherwise = alphaBeta depth (max a newVal) b color (max val newVal) ps
-    where newVal = -negamax (depth-1) (-b) (-a) (-color) p
+-- Let's have some fun with the Either monad in the alpha-beta pruning algorithm
+-- Here Left means that the pruning is finished
+-- Right means that the search is going on
+type AlphaBeta = Either Float Float
+
+-- Function to extract the value from the AlphaBeta type
+fromAB :: AlphaBeta -> Float
+fromAB (Right a) = a
+fromAB (Left a)  = a
+
+-- Now the alpha-beta pruning can be nicely expressed as a fold in terms
+-- of the AlphaBeta monad. The fold _could_ be implemented equally well in
+-- without the monad, but the abstraction makes the control flow somewhat more
+-- explicit.
+alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> [a] -> Float
+alphaBeta depth a b c ps = fromAB $ foldM f (-1/0) ps
+    where f :: GamePosition a => Float -> a -> AlphaBeta
+          f val pos
+              | val >= b  = Left val  -- could return plain Float values here
+                                      -- as well and it would work, but wouldn't
+                                      -- be as neat
+              | otherwise = Right $ max val newVal
+              where newVal = -negamax (depth-1) (-b) (-max a val) (-c) pos
 
 -- The initial call to negamax which returns the chosen position along with the
 -- score
