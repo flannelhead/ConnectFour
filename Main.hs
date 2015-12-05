@@ -113,3 +113,4 @@ main = do
                   , depth = 9
                   , position = Position 0 startingPlayer $ emptyBoard (6, 7) 4
                   , cursorCol = 0 }
+

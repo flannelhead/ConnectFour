@@ -30,8 +30,9 @@ fromAB (Left a)  = a
 
 -- Now the alpha-beta pruning can be nicely expressed as a fold in terms
 -- of the AlphaBeta monad. The fold _could_ be implemented equally well in
--- without the monad, but the abstraction makes the control flow somewhat more
--- explicit.
+-- without the monad, but the abstraction makes the control flow somewhat
+-- clearer by stating explicitly that the pruning is finished in the middle
+-- of the fold.
 alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> [a] -> Float
 alphaBeta depth a b c ps = fromAB $ foldM f (-1/0) ps
     where f :: GamePosition a => Float -> a -> AlphaBeta
