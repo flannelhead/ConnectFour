@@ -10,50 +10,54 @@ class GamePosition a where
     -- maximizing player
     evaluate :: a -> Float
 
+class Semigroup a where
+    (<>) :: a -> a -> a
+
+data GamePosition a => AlphaBeta a = AlphaBeta { getPos :: a, getVal :: Float }
+-- Let's define a semigroup instance for use in the alpha-beta pruning algo.
+-- There we maximize over game positions. A semigroup is a convenient way to
+-- express this. There's no natural way to introduce a mempty here, hence
+-- this is not a Monoid instance.
+instance GamePosition a => Semigroup (AlphaBeta a) where
+    a <> b = if getVal a >= getVal b then a else b
+
 -- An implementation of the negamax algorithm with alpha-beta pruning
 -- https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning
 negamax :: GamePosition a => Int -> Float -> Float -> Int -> a -> Float
 negamax depth a b color pos
     | depth == 0 || null nodes = fromIntegral color * evaluate pos
-    | otherwise = alphaBeta depth a b color nodes
+    | otherwise = getVal $ alphaBeta depth a b color nodes
     where nodes = children pos
 
 -- Let's have some fun with the Either monad in the alpha-beta pruning algorithm
 -- Left means that the pruning is finished
 -- Right means that the search is going on
-type AlphaBeta = Either Float Float
-
--- Function to extract the value from the AlphaBeta type
-fromAB :: AlphaBeta -> Float
-fromAB (Right a) = a
-fromAB (Left a)  = a
-
 -- Now the alpha-beta pruning can be nicely expressed as a fold in terms
 -- of the AlphaBeta monad. The fold _could_ be implemented equally well in
 -- without the monad, but the abstraction makes the control flow somewhat
 -- clearer by stating explicitly if the pruning is finished in the middle
 -- of the fold.
-alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> [a] -> Float
-alphaBeta depth a b c ps = fromAB $ foldM f (-1/0) ps
-    where f :: GamePosition a => Float -> a -> AlphaBeta
-          f val pos
-              | val >= b  = Left val  -- could use a regular fold and return
-                                      -- plain Float values here as well and it
-                                      -- would work, but wouldn't be as neat
-                                      -- and explicit about where and how the
-                                      -- pruning is finished
-              | otherwise = Right $ max val newVal
-              where newVal = -negamax (depth-1) (-b) (-max a val) (-c) pos
+-- N.B. This function must be applied to a nonempty list [a]!
+alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> [a]
+             -> AlphaBeta a
+alphaBeta depth a b c (p:ps) = fromEither $ foldM f (doNegamax (-1/0) p) ps
+    where doNegamax :: GamePosition a => Float -> a -> AlphaBeta a
+          doNegamax a2 pos = AlphaBeta pos
+                             $ -negamax (depth-1) (-b) (-a2) (-c) pos
+
+          f :: GamePosition a => AlphaBeta a -> a
+               -> Either (AlphaBeta a) (AlphaBeta a)
+          f acc pos
+              | getVal acc >= b = Left acc
+              | otherwise = Right $ acc <> newAb
+              where newAb = doNegamax (max a (getVal acc)) pos
+
+          fromEither (Left  x) = x
+          fromEither (Right x) = x
 
 -- The initial call to negamax which returns the chosen position along with the
 -- score
 bestNextPosition :: GamePosition a => Int -> a -> a
-bestNextPosition depth pos = snd . ab (-1/0) (-1/0, pos) $ children pos
-    where ab :: GamePosition a => Float -> (Float, a) -> [a] -> (Float, a)
-          ab _ x [] = x
-          ab a oldPos@(val, _) (p:ps)
-              | val >= 1/0 = oldPos
-              | otherwise = ab (max a newVal) newPos ps
-              where newVal = -negamax (depth-1) (-1/0) (-a) (-1) p
-                    newPos = if newVal > val then (newVal, p) else oldPos
+bestNextPosition depth pos = getPos $ alphaBeta depth (-1/0) (1/0) 1
+                                    $ children pos
 
