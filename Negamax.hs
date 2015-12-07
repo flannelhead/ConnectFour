@@ -25,9 +25,8 @@ instance GamePosition a => Semigroup (AlphaBeta a) where
 -- https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning
 negamax :: GamePosition a => Int -> Float -> Float -> Int -> a -> Float
 negamax depth a b color pos
-    | depth == 0 || null nodes = fromIntegral color * evaluate pos
-    | otherwise = getVal $ alphaBeta depth a b color nodes
-    where nodes = children pos
+    | depth == 0 || null (children pos) = fromIntegral color * evaluate pos
+    | otherwise = getVal $ alphaBeta depth a b color pos
 
 -- Let's have some fun with the Either monad in the alpha-beta pruning algorithm
 -- Left means that the pruning is finished
@@ -38,19 +37,22 @@ negamax depth a b color pos
 -- clearer by stating explicitly if the pruning is finished in the middle
 -- of the fold.
 -- N.B. This function must be applied to a nonempty list [a]!
-alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> [a]
+-- Otherwise no sensible results are guaranteed.
+alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a
              -> AlphaBeta a
-alphaBeta depth a b c (p:ps) = fromEither $ foldM f (doNegamax (-1/0) p) ps
+alphaBeta depth a b c pos = fromEither $ case children pos of
+                                (p:ps) -> foldM f (doNegamax (-1/0) p) ps
+                                _      -> Left $ AlphaBeta pos (1/0)
     where doNegamax :: GamePosition a => Float -> a -> AlphaBeta a
-          doNegamax a2 pos = AlphaBeta pos
-                             $ -negamax (depth-1) (-b) (-a2) (-c) pos
+          doNegamax a2 p = AlphaBeta p
+                           $ -negamax (depth-1) (-b) (-a2) (-c) p
 
           f :: GamePosition a => AlphaBeta a -> a
                -> Either (AlphaBeta a) (AlphaBeta a)
-          f acc pos
+          f acc p
               | getVal acc >= b = Left acc
               | otherwise = Right $ acc <> newAb
-              where newAb = doNegamax (max a (getVal acc)) pos
+              where newAb = doNegamax (max a (getVal acc)) p
 
           fromEither (Left  x) = x
           fromEither (Right x) = x
@@ -58,6 +60,5 @@ alphaBeta depth a b c (p:ps) = fromEither $ foldM f (doNegamax (-1/0) p) ps
 -- The initial call to negamax which returns the chosen position along with the
 -- score
 bestNextPosition :: GamePosition a => Int -> a -> a
-bestNextPosition depth pos = getPos $ alphaBeta depth (-1/0) (1/0) 1
-                                    $ children pos
+bestNextPosition depth pos = getPos $ alphaBeta depth (-1/0) (1/0) 1 pos
 
