@@ -14,6 +14,7 @@ data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
 -- board size, line masks, human discs, computer discs
+-- !! N.B. this representation fits a board with max. 64 slots !!
 data Board = Board BoardSize (V.Vector Word64) Word64 Word64
 type Move = Int
 data Position = Position Move Player Board
