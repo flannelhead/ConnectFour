@@ -53,6 +53,7 @@ possibleMoves :: Position -> [Move]
 possibleMoves (Position _ _ brd@(Board (nRows, nCols) _ _ _)) =
     filter (\col -> isNothing $ discAt brd (nRows - 1, col)) [0..nCols-1]
 
+-- Apply the move on the position and return the resulting position
 makeMove :: Position -> Move -> Position
 makeMove (Position _ turn (Board bSize@(nRows, _) masks human computer)) col =
     Position col (nextTurn turn) newBoard
@@ -72,12 +73,11 @@ nextTurn :: Player -> Player
 nextTurn Human    = Computer
 nextTurn Computer = Human
 
-testMask :: Word64 -> Word64 -> Bool
-testMask a b = a .&. b `xor` b == 0
-
+-- Create bitmask from an array of coordinates
 coordsToMask :: BoardSize -> [(Int, Int)] -> Word64
 coordsToMask bSize coords = foldl' setBit 0 $ map (boardIndex bSize) coords
 
+-- Compute all the bitmasks which represent winning lines on the board.
 lineMasks :: BoardSize -> Int -> V.Vector Word64
 lineMasks bSize@(nRows, nCols) lineLen = V.fromList
     $ map (coordsToMask bSize) allLines
@@ -93,6 +93,10 @@ lineMasks bSize@(nRows, nCols) lineLen = V.fromList
           rTop  = [lineLen-1..nRows-1]
           line  = [0..lineLen-1]
 
+-- Test if the word a has all the bits specified by word b set
+testMask :: Word64 -> Word64 -> Bool
+testMask a b = a .&. b `xor` b == 0
+
 winner :: Position -> Maybe Player
 winner (Position _ _ (Board _ masks human computer))
     | hasWinningLine human = Just Human
@@ -103,6 +107,8 @@ winner (Position _ _ (Board _ masks human computer))
 isFull :: Position -> Bool
 isFull pos = null $ possibleMoves pos
 
+-- Order moves by how close they are to the center of the board. This usually
+-- seems to result in a speedup in the pruning algorithm
 orderedMoves :: Position -> [Move]
 orderedMoves pos@(Position _ _ (Board (_, nCols) _ _ _)) = sortBy
     (comparing $ \col -> abs (col - nCols `div` 2)) $ possibleMoves pos
