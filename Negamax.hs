@@ -32,10 +32,11 @@ negamax depth a b color pos
 -- Left means that the pruning is finished
 -- Right means that the search is going on
 -- Now the alpha-beta pruning can be nicely expressed as a fold in terms
--- of the AlphaBeta monad. The fold _could_ be implemented equally well in
+-- of the Either monad. The fold _could_ be implemented equally well in
 -- without the monad, but the abstraction makes the control flow somewhat
 -- clearer by stating explicitly if the pruning is finished in the middle
 -- of the fold.
+--
 -- N.B. This function must be applied to a nonempty list [a]!
 -- Otherwise no sensible results are guaranteed.
 alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a
@@ -49,10 +50,9 @@ alphaBeta depth a b c pos = fromEither $ case children pos of
 
           f :: GamePosition a => AlphaBeta a -> a
                -> Either (AlphaBeta a) (AlphaBeta a)
-          f acc p
-              | getVal acc >= b = Left acc
-              | otherwise = Right $ acc <> newAb
-              where newAb = doNegamax (max a (getVal acc)) p
+          f acc p | getVal acc >= b = Left acc
+                  | otherwise = Right $ acc <> newAb
+                  where newAb = doNegamax (max a (getVal acc)) p
 
           fromEither (Left  x) = x
           fromEither (Right x) = x
