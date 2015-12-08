@@ -1,6 +1,7 @@
 module Negamax where
 
 import Control.Monad
+import Control.Parallel
 
 class GamePosition a where
     -- Given a position, list possible next positions sorted by the likelihood
@@ -13,12 +14,14 @@ class GamePosition a where
 class Semigroup a where
     (<>) :: a -> a -> a
 
-data GamePosition a => AlphaBeta a = AlphaBeta { getPos :: a, getVal :: Float }
+-- This is a type for associating a value with a position in the negamax
+-- algorithm
+data GamePosition a => AlphaBeta a b = AlphaBeta { getPos :: a, getVal :: b }
 -- Let's define a semigroup instance for use in the alpha-beta pruning algo.
 -- There we maximize over game positions. A semigroup is a convenient way to
 -- express this. There's no natural way to introduce a mempty here, hence
 -- this is not a Monoid instance.
-instance GamePosition a => Semigroup (AlphaBeta a) where
+instance (GamePosition a, Ord b) => Semigroup (AlphaBeta a b) where
     a <> b = if getVal a >= getVal b then a else b
 
 -- An implementation of the negamax algorithm with alpha-beta pruning
@@ -40,25 +43,20 @@ negamax depth a b color pos
 -- N.B. This function must be applied to a nonempty list [a]!
 -- Otherwise no sensible results are guaranteed.
 alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a
-             -> AlphaBeta a
+             -> AlphaBeta a Float
 alphaBeta depth a b c pos = fromEither $ case children pos of
                                 (p:ps) -> foldM f (doNegamax (-1/0) p) ps
                                 _      -> Left $ AlphaBeta pos (1/0)
-    where doNegamax :: GamePosition a => Float -> a -> AlphaBeta a
-          doNegamax a2 p = AlphaBeta p
-                           $ -negamax (depth-1) (-b) (-a2) (-c) p
+    where doNegamax a2 p = AlphaBeta p $ -negamax (depth-1) (-b) (-a2) (-c) p
 
-          f :: GamePosition a => AlphaBeta a -> a
-               -> Either (AlphaBeta a) (AlphaBeta a)
           f acc p | getVal acc >= b = Left acc
                   | otherwise = Right $ acc <> newAb
-                  where newAb = doNegamax (max a (getVal acc)) p
+                  where newAb = doNegamax (max a $ getVal acc) p
 
           fromEither (Left  x) = x
           fromEither (Right x) = x
 
--- The initial call to negamax which returns the chosen position along with the
--- score
+-- The initial negamax step which returns the chosen position
 bestNextPosition :: GamePosition a => Int -> a -> a
 bestNextPosition depth pos = getPos $ alphaBeta depth (-1/0) (1/0) 1 pos
 
