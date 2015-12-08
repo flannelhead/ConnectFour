@@ -23,7 +23,7 @@ instance GamePosition Position where
     evaluate pos = maybe 0 (\a -> if a == Human then -1 else 1) $ winner pos
     children pos = case winner pos of
         Just _ -> []
-        _      -> map (makeMove pos) $ orderedMoves pos
+        _      -> makeMove pos <$> orderedMoves pos
 
 instance Show Player where
     show player = setSGRCode [SetColor Foreground Vivid $ color player] ++
@@ -64,8 +64,8 @@ makeMove (Position _ turn (Board bSize@(nRows, _) masks human computer)) col =
           makeNewBoard = Board bSize masks
           myBit = boardIndex bSize (freeRow, col)
           freeRow = fromMaybe 0 $ find (\row -> not
-              $ testBit human (boardIndex bSize (row, col))
-              || testBit computer (boardIndex bSize (row, col))) [0..nRows-1]
+              $ testBit (human .|. computer) (boardIndex bSize (row, col)))
+              [0..nRows-1]
 
 emptyBoard :: BoardSize -> Int -> Board
 emptyBoard size lineLen = Board size (lineMasks size lineLen) 0 0
