@@ -1,7 +1,6 @@
 module Negamax where
 
 import Control.Monad
-import Control.Parallel
 
 class GamePosition a where
     -- Given a position, list possible next positions sorted by the likelihood
@@ -39,9 +38,6 @@ negamax depth a b color pos
 -- without the monad, but the abstraction makes the control flow somewhat
 -- clearer by stating explicitly if the pruning is finished in the middle
 -- of the fold.
---
--- N.B. This function must be applied to a nonempty list [a]!
--- Otherwise no sensible results are guaranteed.
 alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a
              -> AlphaBeta a Float
 alphaBeta depth a b c pos = fromEither $ case children pos of
