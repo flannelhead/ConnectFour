@@ -62,7 +62,7 @@ makeNextMove game = case currentPlayer game of
 makeHumanMove :: Game -> IO ()
 makeHumanMove game = do
     drawGame game
-        { message = "h/j = move left/right, space = drop disc, q = quit" }
+        { message = "h/l = move left/right, space = drop disc, q = quit" }
     chr <- getChar
     case chr of
         'h' -> makeHumanMove $ movePointer (-1) game
