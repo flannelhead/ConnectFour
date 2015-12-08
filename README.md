@@ -5,7 +5,7 @@ programming course and has proven to be a great way to learn more about
 Haskell's powerful abstractions.
 
 NOTE: If the computer turn takes too long to run / swallos too much memory,
-adjust the search depth determined at the bottom of `Main.hs.`.
+adjust the search depth determined at the bottom of `Main.hs`.
 
 ## Structure
 `Main.hs` contains most of the gameplay and console drawing logic.
@@ -21,6 +21,6 @@ game algorithm which is used by the computer opponent.
 
 ## Goals
 The negamax algorithm is a work in progress. The intent is to generalize it
-using Haskell's abstractions. If there's time left after that, the algorithm
+using Haskell's abstractions like `Monoid`, `Functor`, `Applicative` and `Monad`. If there's time left after that, the algorithm
 could be parallelized to benefit from multicore processing.
 
