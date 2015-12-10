@@ -66,7 +66,7 @@ makeHumanMove game = do
     chr <- getChar
     case chr of
         'h' -> makeHumanMove $ movePointer (-1) game
-        'l' -> makeHumanMove $ movePointer 1    game
+        'j' -> makeHumanMove $ movePointer 1    game
         ' ' -> gameLoop $ dropDisc game
         'q' -> return ()
         _   -> gameLoop game
