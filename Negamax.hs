@@ -12,27 +12,19 @@ class GamePosition a where
 -- https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning
 negamax :: GamePosition a => Int -> Float -> Float -> Int -> a -> Float
 negamax depth a b color pos
-    | depth == 0 || null nodes = fromIntegral color * evaluate pos
-    | otherwise = alphaBeta depth a b color (-1/0) nodes
-    where nodes = children pos
+    | depth == 0 || null (children pos) = fromIntegral color * evaluate pos
+    | otherwise = snd $ alphaBeta depth a b color pos
 
-alphaBeta :: GamePosition a =>
-    Int -> Float -> Float -> Int -> Float -> [a] -> Float
-alphaBeta _ _ _ _ val [] = val
-alphaBeta depth a b color val (p:ps)
-    | val >= b = val
-    | otherwise = alphaBeta depth (max a newVal) b color (max val newVal) ps
-    where newVal = -negamax (depth-1) (-b) (-a) (-color) p
+alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a -> (a, Float)
+alphaBeta depth a b c pos = case children pos of
+                                (p:ps) -> foldr f (doNegamax (-1/0) p) ps
+                                _      -> (pos, 1/0)
+    where doNegamax a2 p = (p, -negamax (depth-1) (-b) (-a2) (-c) p)
+          f p acc | snd acc >= b = acc
+                  | otherwise = if snd acc >= snd newVal then acc else newVal
+                  where newVal = doNegamax (max a $ snd acc) p
 
 -- The initial call to negamax which returns the chosen position along with the
 -- score
 bestNextPosition :: GamePosition a => Int -> a -> a
-bestNextPosition depth pos = snd . ab (-1/0.0) (-1/0.0, pos) $ children pos
-    where ab :: GamePosition a => Float -> (Float, a) -> [a] -> (Float, a)
-          ab _ x [] = x
-          ab a oldPos@(val, _) (p:ps)
-              | val >= 1/0.0 || null ps = oldPos
-              | otherwise = ab (max a newVal) newPos ps
-              where newVal = -negamax (depth-1) (-1/0.0) (-a) (-1) p
-                    newPos = if newVal > val then (newVal, p) else oldPos
-
+bestNextPosition depth pos = fst $ alphaBeta depth (-1/0) (1/0) 1 pos
