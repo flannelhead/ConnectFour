@@ -13,14 +13,13 @@ class GamePosition a where
 -- An implementation of the negamax algorithm with alpha-beta pruning
 -- https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning
 negamax :: GamePosition a => Int -> Float -> Float -> Int -> a -> Float
-negamax depth a b color pos
-    | depth == 0 || null (children pos) = fromIntegral color * evaluate pos
-    | otherwise = snd $ alphaBeta depth a b color pos
+negamax 0     _ _ color pos = fromIntegral color * evaluate pos
+negamax depth a b color pos = snd $ alphaBeta depth a b color pos
 
 alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a -> (a, Float)
 alphaBeta depth a b c pos = case children pos of
                                 (p:ps) -> foldl' f (doNegamax (-1/0) p) ps
-                                _      -> (pos, 1/0)
+                                _      -> (pos, negamax 0 a b c pos)
     where doNegamax a2 p = (p, -negamax (depth-1) (-b) (-a2) (-c) p)
           f acc p | snd acc >= b = acc
                   | otherwise = if snd acc >= snd newVal then acc else newVal
