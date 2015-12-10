@@ -26,9 +26,8 @@ instance (GamePosition a, Ord b) => Semigroup (AlphaBeta a b) where
 -- An implementation of the negamax algorithm with alpha-beta pruning
 -- https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning
 negamax :: GamePosition a => Int -> Float -> Float -> Int -> a -> Float
-negamax depth a b color pos
-    | depth == 0 || null (children pos) = fromIntegral color * evaluate pos
-    | otherwise = getVal $ alphaBeta depth a b color pos
+negamax 0     _ _ color pos = fromIntegral color * evaluate pos
+negamax depth a b color pos = getVal $ alphaBeta depth a b color pos
 
 -- Let's have some fun with the Either monad in the alpha-beta pruning algorithm
 -- Left means that the pruning is finished
@@ -42,7 +41,8 @@ alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a
              -> AlphaBeta a Float
 alphaBeta depth a b c pos = fromEither $ case children pos of
                                 (p:ps) -> foldM f (doNegamax (-1/0) p) ps
-                                _      -> Left $ AlphaBeta pos (1/0)
+                                _      -> Left
+                                          $ AlphaBeta pos (negamax 0 a b c pos)
     where doNegamax a2 p = AlphaBeta p $ -negamax (depth-1) (-b) (-a2) (-c) p
 
           f acc p | getVal acc >= b = Left acc
@@ -55,4 +55,3 @@ alphaBeta depth a b c pos = fromEither $ case children pos of
 -- The initial negamax step which returns the chosen position
 bestNextPosition :: GamePosition a => Int -> a -> a
 bestNextPosition depth pos = getPos $ alphaBeta depth (-1/0) (1/0) 1 pos
-
