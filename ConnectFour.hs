@@ -76,12 +76,12 @@ nextTurn Computer = Human
 
 -- Create bitmask from an array of coordinates
 coordsToMask :: BoardSize -> [(Int, Int)] -> Word64
-coordsToMask bSize coords = foldl' setBit 0 $ map (boardIndex bSize) coords
+coordsToMask bSize coords = foldl' setBit 0 $ boardIndex bSize <$> coords
 
 -- Compute all the bitmasks which represent winning lines on the board.
 lineMasks :: BoardSize -> Int -> V.Vector Word64
 lineMasks bSize@(nRows, nCols) lineLen = V.fromList
-    $ map (coordsToMask bSize) allLines
+    $ coordsToMask bSize <$> allLines
     where allLines = concat [vert, horz, diag1, diag2]
           vert  = [[(r + dl, c) | dl <- line] | r <- rBot, c <- cAll]
           horz  = [[(r, c + dl) | dl <- line] | r <- rAll, c <- cLeft]
