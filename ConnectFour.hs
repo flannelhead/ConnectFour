@@ -40,8 +40,8 @@ possibleMoves (Position _ _ brd@(Board (nRows, nCols) _ _ _)) =
 makeMove :: Position -> Move -> Position
 makeMove (Position _ turn (Board bSize@(nRows, _) masks human computer)) col =
     Position col (nextTurn turn) newBoard
-    where newBoard = if turn == Computer then
-                          makeNewBoard human $ setBit computer myBit
+    where newBoard = if turn == Computer
+                     then makeNewBoard human $ setBit computer myBit
                      else makeNewBoard (setBit human myBit) computer
           makeNewBoard = Board bSize masks
           myBit = boardIndex bSize (freeRow, col)
