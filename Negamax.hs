@@ -1,5 +1,7 @@
 module Negamax where
 
+import Data.List
+
 class GamePosition a where
     -- Given a position, list possible next positions sorted by the likelihood
     -- they will be good moves
@@ -17,10 +19,10 @@ negamax depth a b color pos
 
 alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a -> (a, Float)
 alphaBeta depth a b c pos = case children pos of
-                                (p:ps) -> foldr f (doNegamax (-1/0) p) ps
+                                (p:ps) -> foldl' f (doNegamax (-1/0) p) ps
                                 _      -> (pos, 1/0)
     where doNegamax a2 p = (p, -negamax (depth-1) (-b) (-a2) (-c) p)
-          f p acc | snd acc >= b = acc
+          f acc p | snd acc >= b = acc
                   | otherwise = if snd acc >= snd newVal then acc else newVal
                   where newVal = doNegamax (max a $ snd acc) p
 
