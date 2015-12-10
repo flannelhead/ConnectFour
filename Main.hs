@@ -15,8 +15,20 @@ data Game = Game { message    :: String
 
 instance Show Game where
     show game = let Position _ turn board = position game in
-        replicate (2 + 2 * cursorCol game) ' ' ++ show turn ++ "\n"
-        ++ show board ++ "\n" ++ message game
+        replicate (2 + 2 * cursorCol game) ' ' ++ showDisc turn ++ "\n"
+        ++ showBoard board ++ "\n" ++ message game
+        where
+        showBoard brd@(Board (nRows, nCols) _ _ _) = unlines . reverse
+            $ ('┗' : replicate (2*nCols + 1) '━' ++ "┛")
+              : map (\line -> "┃ " ++ line ++ "┃")
+                [concat [showDisc2 $ discAt brd (row, col)
+                | col <- [0..nCols-1]] | row <- [0..nRows-1]]
+            where showDisc2 (Just disc) = showDisc disc ++ " "
+                  showDisc2 _           = "  "
+        showDisc player = setSGRCode [SetColor Foreground Vivid $ color player]
+            ++ "●" ++ setSGRCode []
+            where color Human    = Red
+                  color Computer = Blue
 
 pad :: Int -> String -> String
 pad p str = replicate p '\n' ++

@@ -6,7 +6,6 @@ import Data.Maybe
 import Data.List
 import Data.Ord
 import qualified Data.Vector.Unboxed as V
-import System.Console.ANSI
 
 import Negamax
 
@@ -23,21 +22,6 @@ instance GamePosition Position where
     children pos = case winner pos of
         Just _ -> []
         _      -> makeMove pos <$> orderedMoves pos
-
-instance Show Player where
-    show player = setSGRCode [SetColor Foreground Vivid $ color player] ++
-        "●" ++ setSGRCode []
-        where color Human    = Red
-              color Computer = Blue
-
-instance Show Board where
-    show brd@(Board (nRows, nCols) _ _ _) = unlines . reverse
-        $ ('┗' : replicate (2*nCols + 1) '━' ++ "┛")
-          : map (\line -> "┃ " ++ line ++ "┃")
-            [concat [showDisc $ discAt brd (row, col) | col <- [0..nCols-1]]
-            | row <- [0..nRows-1]]
-        where showDisc (Just disc) = show disc ++ " "
-              showDisc _           = "  "
 
 boardIndex :: BoardSize -> (Int, Int) -> Int
 boardIndex (_, nCols) (row, col) = row * nCols + col
@@ -106,4 +90,3 @@ isFull pos = null $ possibleMoves pos
 orderedMoves :: Position -> [Move]
 orderedMoves pos@(Position _ _ (Board (_, nCols) _ _ _)) = sortBy
     (comparing $ \col -> abs (col - nCols `div` 2)) $ possibleMoves pos
-
