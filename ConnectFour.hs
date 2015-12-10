@@ -22,7 +22,7 @@ instance GamePosition Position where
     evaluate pos = maybe 0 (\a -> if a == Human then -1 else 1) $ winner pos
     children pos = case winner pos of
         Just _ -> []
-        _      -> map (makeMove pos) $ orderedMoves pos
+        _      -> makeMove pos <$> orderedMoves pos
 
 instance Show Player where
     show player = setSGRCode [SetColor Foreground Vivid $ color player] ++
@@ -62,8 +62,8 @@ makeMove (Position _ turn (Board bSize@(nRows, _) masks human computer)) col =
           makeNewBoard = Board bSize masks
           myBit = boardIndex bSize (freeRow, col)
           freeRow = fromMaybe 0 $ find (\row -> not
-              $ testBit human (boardIndex bSize (row, col))
-              || testBit computer (boardIndex bSize (row, col))) [0..nRows-1]
+              $ testBit (human .|. computer) (boardIndex bSize (row, col)))
+              [0..nRows-1]
 
 emptyBoard :: BoardSize -> Int -> Board
 emptyBoard size lineLen = Board size (lineMasks size lineLen) 0 0
@@ -76,11 +76,11 @@ testMask :: Word64 -> Word64 -> Bool
 testMask a b = a .&. b `xor` b == 0
 
 coordsToMask :: BoardSize -> [(Int, Int)] -> Word64
-coordsToMask bSize coords = foldl' setBit 0 $ map (boardIndex bSize) coords
+coordsToMask bSize coords = foldl' setBit 0 $ boardIndex bSize <$> coords
 
 lineMasks :: BoardSize -> Int -> V.Vector Word64
 lineMasks bSize@(nRows, nCols) lineLen = V.fromList
-    $ map (coordsToMask bSize) allLines
+    $ coordsToMask bSize <$> allLines
     where allLines = concat [vert, horz, diag1, diag2]
           vert  = [[(r + dl, c) | dl <- line] | r <- rBot, c <- cAll]
           horz  = [[(r, c + dl) | dl <- line] | r <- rAll, c <- cLeft]
