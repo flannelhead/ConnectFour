@@ -14,9 +14,9 @@ data Player = Human | Computer deriving (Enum, Eq)
 type BoardSize = (Int, Int)
 -- board size, line masks, human discs, computer discs
 -- !! N.B. this representation fits a board with max. 64 slots !!
-data Board = Board BoardSize (V.Vector Word64) Word64 Word64
+data Board = Board !BoardSize !(V.Vector Word64) !Word64 !Word64
 type Move = Int
-data Position = Position Move Player Board
+data Position = Position Move Player !Board
 
 instance GamePosition Position where
     evaluate pos = maybe 0 (\a -> if a == Human then -1 else 1) $ winner pos
@@ -80,7 +80,7 @@ lineMasks bSize@(nRows, nCols) lineLen = V.fromList
 
 -- Test if the word a has all the bits specified by word b set
 testMask :: Word64 -> Word64 -> Bool
-testMask a b = a .&. b `xor` b == 0
+testMask a b = a .&. b == b
 
 winner :: Position -> Maybe Player
 winner (Position _ _ (Board _ masks human computer))
