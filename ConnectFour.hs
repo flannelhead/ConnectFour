@@ -13,9 +13,9 @@ data Player = Human | Computer deriving (Enum, Eq)
 -- (rows, columns)
 type BoardSize = (Int, Int)
 -- board size, line masks, human discs, computer discs
-data Board = Board BoardSize (V.Vector Word64) Word64 Word64
+data Board = Board BoardSize !(V.Vector Word64) !Word64 !Word64
 type Move = Int
-data Position = Position Move Player Board
+data Position = Position Move Player !Board
 
 instance GamePosition Position where
     evaluate pos = maybe 0 (\a -> if a == Human then -1 else 1) $ winner pos

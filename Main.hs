@@ -10,7 +10,7 @@ import Negamax
 
 data Game = Game { message    :: String
                  , depth      :: Int
-                 , position   :: Position
+                 , position   :: !Position
                  , cursorCol  :: !Int }
 
 instance Show Game where
