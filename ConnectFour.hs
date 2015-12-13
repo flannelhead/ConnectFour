@@ -57,7 +57,7 @@ nextTurn Human    = Computer
 nextTurn Computer = Human
 
 testMask :: Word64 -> Word64 -> Bool
-testMask a b = a .&. b `xor` b == 0
+testMask a b = a .&. b == b
 
 coordsToMask :: BoardSize -> [(Int, Int)] -> Word64
 coordsToMask bSize coords = foldl' setBit 0 $ boardIndex bSize <$> coords
