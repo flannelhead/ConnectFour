@@ -86,7 +86,7 @@ makeHumanMove game = do
 makeComputerMove :: Game -> IO ()
 makeComputerMove game = do
     drawGame game { message = "The computer is pondering..." }
-    drawGame game { message = "Press space to accept computer move"
+    drawGame game { message = "Press space to accept the computer's move"
                   , cursorCol = col }
     waitForSpace
     gameLoop game { position = newPos }
