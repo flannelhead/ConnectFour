@@ -8,7 +8,10 @@ NOTE: If the computer turn takes too long to run / swallos too much memory,
 adjust the search depth determined at the bottom of `Main.hs`.
 
 ## Structure
-`Main.hs` contains most of the gameplay and console drawing logic.
+`Main.hs` contains most of the gameplay and console drawing logic. The game
+logic and IO were originally written in terms of plain `IO ()` but have since
+been lifted to `StateT Game IO ()` where the game state is implicitly carried in
+the `StateT` monad transformer. Also, some monadic idioms are in use.
 
 `ConnectFour.hs` contains the Connect Four game representation and a few helper
 functions. The game board representation consists of two 64-bit words, one for
@@ -17,7 +20,10 @@ is occupied by the player in question.
 
 Last but not least, `Negamax.hs` contains an implementation of the
 [negamax](https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning)
-game algorithm which is used by the computer opponent.
+game algorithm which is used by the computer opponent. Although a bit redundant,
+a data type for a game tree is defined and used there. There are also Functor
+and Applicative instances for the GameTree datatype. Proofs for the applicative
+functor laws are given in `gametree_proofs.txt`.
 
 ## Goals
 The negamax algorithm is a work in progress. The intent is to generalize it
