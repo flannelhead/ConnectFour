@@ -44,18 +44,20 @@ instance Functor GameTree where
 
 
 -- This is how fmap would be implemented utilizing the Applicative instance.
--- It seems to work!
 fmap2 :: (a -> b) -> GameTree a -> GameTree b
 fmap2 f = (pure f <*>)
 
 gameTree :: GamePosition a => a -> GameTree a
 gameTree pos = Node pos $ gameTree <$> children pos
 
+getRoot :: GameTree a -> a
+getRoot tree = let Node x _ = tree in x
+
 -- An implementation of the negamax algorithm with alpha-beta pruning
 -- https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning
-negamax :: GamePosition a => Int -> Float -> Float -> Int -> a -> Float
-negamax 0     _ _ color pos = fromIntegral color * evaluate pos
-negamax depth a b color pos = getVal $ alphaBeta depth a b color pos
+negamax :: GamePosition a => Int -> Float -> Float -> Int -> GameTree a -> Float
+negamax 0     _ _ color tree = fromIntegral color * evaluate (getRoot tree)
+negamax depth a b color tree = getVal $ alphaBeta depth a b color tree
 
 -- Let's have some fun with the Either monad in the alpha-beta pruning algorithm
 -- Left means that the pruning is finished
@@ -65,13 +67,15 @@ negamax depth a b color pos = getVal $ alphaBeta depth a b color pos
 -- without the monad, but the abstraction makes the control flow somewhat
 -- clearer by stating explicitly if the pruning is finished in the middle
 -- of the fold.
-alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> a
+alphaBeta :: GamePosition a => Int -> Float -> Float -> Int -> GameTree a
              -> AlphaBeta a Float
-alphaBeta depth a b c pos = fromEither $ case children pos of
-                                (p:ps) -> foldM f (doNegamax (-1/0) p) ps
-                                _      -> Left
-                                          $ AlphaBeta pos (negamax 0 a b c pos)
-    where doNegamax a2 p = AlphaBeta p $ -negamax (depth-1) (-b) (-a2) (-c) p
+alphaBeta depth a b c tree = let Node pos nodes = tree in
+                               fromEither $ case nodes of
+                                 (p:ps) -> foldM f (doNegamax (-1/0) p) ps
+                                 _      -> Left $ AlphaBeta pos
+                                               (negamax 0 a b c tree)
+    where doNegamax a2 tree2 = let p = getRoot tree2 in
+              AlphaBeta p $ -negamax (depth-1) (-b) (-a2) (-c) tree2
 
           f acc p | getVal acc >= b = Left acc
                   | otherwise = Right $ acc <> newAb
@@ -82,4 +86,5 @@ alphaBeta depth a b c pos = fromEither $ case children pos of
 
 -- The initial negamax step which returns the chosen position
 bestNextPosition :: GamePosition a => Int -> a -> a
-bestNextPosition depth pos = getPos $ alphaBeta depth (-1/0) (1/0) 1 pos
+bestNextPosition depth pos = getPos $ alphaBeta depth (-1/0) (1/0) 1
+    $ gameTree pos
