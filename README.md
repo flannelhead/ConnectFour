@@ -1,10 +1,10 @@
 # ConnectFour
 A small implementation of Connect Four game with beautiful ANSI terminal
-graphics and a computer opponent. This project was started on a university 
+graphics and a computer opponent. This project was started on a university
 programming course and has proven to be a great way to learn more about
 Haskell's powerful abstractions.
 
-NOTE: If the computer turn takes too long to run / swallos too much memory,
+NOTE: If the computer turn takes too long to run / swallows too much memory,
 adjust the search depth determined at the bottom of `Main.hs`.
 
 ## Structure
@@ -24,9 +24,4 @@ game algorithm which is used by the computer opponent. Although a bit redundant,
 a data type for a game tree is defined and used there. There are also Functor
 and Applicative instances for the GameTree datatype. Proofs for the applicative
 functor laws are given in `gametree_proofs.txt`.
-
-## Goals
-The negamax algorithm is a work in progress. The intent is to generalize it
-using Haskell's abstractions like `Monoid`, `Functor`, `Applicative` and `Monad`. If there's time left after that, the algorithm
-could be parallelized to benefit from multicore processing.
 
