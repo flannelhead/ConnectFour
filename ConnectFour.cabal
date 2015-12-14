@@ -61,7 +61,8 @@ executable ConnectFour
   build-depends:       base >=4.8 && <4.9,
                        ansi-terminal,
                        vector,
-                       random
+                       random,
+                       mtl
 
   -- Directories containing source files.
   -- hs-source-dirs:

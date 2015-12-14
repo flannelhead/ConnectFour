@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 
 import Control.Monad
+import Control.Monad.State.Lazy
 import System.IO
 import System.Console.ANSI
 import System.Random
@@ -50,58 +51,69 @@ dropDisc game
         game { position = makeMove (position game) (cursorCol game) }
     | otherwise = game
 
-gameLoop :: Game -> IO ()
-gameLoop game = let pos = position game in case winner pos of
-    Just a -> endGameWin game a
-    _      -> if isFull pos then endGameTie game else makeNextMove game
+gameLoop :: StateT Game IO ()
+gameLoop = do
+    game <- get
+    let pos = position game
+    case winner pos of
+        Just a -> endGameWin a
+        _      -> if isFull pos then endGameTie
+                                else makeNextMove
 
-drawGame :: Game -> IO ()
-drawGame !game = do
-    clearScreen
-    setCursorPosition 0 0
-    putStr . pad 1 . show $ game
-    hFlush stdout
+drawGame :: StateT Game IO ()
+drawGame = do
+    !game <- get
+    lift $ do clearScreen
+              setCursorPosition 0 0
+              putStr . pad 1 . show $ game
+              hFlush stdout
 
 currentPlayer :: Game -> Player
 currentPlayer game = let Position _ player _ = position game in player
 
-makeNextMove :: Game -> IO ()
-makeNextMove game = case currentPlayer game of
-    Human    -> makeHumanMove game
-    Computer -> makeComputerMove game
+makeNextMove :: StateT Game IO ()
+makeNextMove = do
+    game <- get
+    case currentPlayer game of
+        Human    -> makeHumanMove
+        Computer -> makeComputerMove
 
-makeHumanMove :: Game -> IO ()
-makeHumanMove game = do
-    drawGame game
-        { message = "h/l = move left/right, space = drop disc, q = quit" }
-    chr <- getChar
+makeHumanMove :: StateT Game IO ()
+makeHumanMove = do
+    modify (setMessage "h/l = move left/right, space = drop disc, q = quit")
+        >> drawGame
+    chr <- lift getChar
     case chr of
-        'h' -> makeHumanMove $ movePointer (-1) game
-        'l' -> makeHumanMove $ movePointer 1    game
-        ' ' -> gameLoop $ dropDisc game
+        'h' -> modify (movePointer (-1)) >> makeHumanMove
+        'l' -> modify (movePointer 1) >> makeHumanMove
+        ' ' -> modify dropDisc >> gameLoop
         'q' -> return ()
-        _   -> gameLoop game
+        _   -> gameLoop
 
-makeComputerMove :: Game -> IO ()
-makeComputerMove game = do
-    drawGame game { message = "The computer is pondering..." }
-    drawGame game { message = "Press space to accept computer move"
-                  , cursorCol = col }
+setMessage :: String -> Game -> Game
+setMessage msg game = game { message = msg }
+
+makeComputerMove :: StateT Game IO ()
+makeComputerMove = do
+    modify (setMessage "The computer is pondering...") >> drawGame
+    game <- get
+    let newGame = game { position = nextPos game }
+    modify (alignCursor newGame)
+    modify (setMessage "Press space to accept the computer's move") >> drawGame
     waitForSpace
-    gameLoop game { position = newPos }
-    where newPos@(Position col _ _) = bestNextPosition (depth game)
-              $ position game
-          waitForSpace :: IO ()
-          waitForSpace = do
-              chr <- getChar
-              unless (chr == ' ') waitForSpace
+    put newGame
+    gameLoop
+    where alignCursor game1 game2 = let Position col _ _ = position game1 in
+                                        game2 { cursorCol = col }
+          nextPos game2 = bestNextPosition (depth game2) $ position game2
+          waitForSpace = lift getChar >>= \c -> unless (c == ' ') waitForSpace
 
-endGameTie :: Game -> IO ()
-endGameTie game = drawGame game { message = "It's a tie! " }
+endGameTie :: StateT Game IO ()
+endGameTie = modify (setMessage "It's a tie!") >> drawGame
 
-endGameWin :: Game -> Player -> IO ()
-endGameWin game player = drawGame
-    game { message = "You " ++ outcome ++ "!\n\n" }
+endGameWin :: Player -> StateT Game IO ()
+endGameWin player =
+    modify (setMessage ("You " ++ outcome ++ "!\n\n")) >> drawGame
     where outcome = if player == Human then "win" else "lose"
 
 main :: IO ()
@@ -120,7 +132,8 @@ main = do
     _ <- getChar
 
     startingPlayer <- toEnum <$> randomRIO (0, 1)
-    gameLoop Game { message = ""
-                  , depth = 9
-                  , position = Position 0 startingPlayer $ emptyBoard (6, 7) 4
-                  , cursorCol = 0 }
+    evalStateT gameLoop Game { message = ""
+                             , depth = 9
+                             , position = Position 0 startingPlayer
+                                 $ emptyBoard (6, 7) 4
+                             , cursorCol = 0 }
