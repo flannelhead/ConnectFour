@@ -81,7 +81,7 @@ makeNextMove = do
 makeHumanMove :: StateT Game IO ()
 makeHumanMove = do
     modify (setMessage "h/l = move left/right, space = drop disc, q = quit")
-        >> drawGame
+    drawGame
     chr <- lift getChar
     case chr of
         'h' -> modify (movePointer (-1)) >> makeHumanMove
@@ -95,11 +95,13 @@ setMessage msg game = game { message = msg }
 
 makeComputerMove :: StateT Game IO ()
 makeComputerMove = do
-    modify (setMessage "The computer is pondering...") >> drawGame
+    modify (setMessage "The computer is pondering...")
+    drawGame
     game <- get
     let newGame = game { position = nextPos game }
     modify (alignCursor newGame)
-    modify (setMessage "Press space to accept the computer's move") >> drawGame
+    modify (setMessage "Press space to accept the computer's move")
+    drawGame
     waitForSpace
     put newGame
     gameLoop
