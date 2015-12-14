@@ -15,13 +15,41 @@ class Semigroup a where
 
 -- This is a type for associating a value with a position in the negamax
 -- algorithm
-data GamePosition a => AlphaBeta a b = AlphaBeta { getPos :: a, getVal :: b }
+data AlphaBeta a b = AlphaBeta { getPos :: a, getVal :: b }
 -- Let's define a semigroup instance for use in the alpha-beta pruning algo.
 -- There we maximize over game positions. A semigroup is a convenient way to
 -- express this. There's no natural way to introduce a mempty here, hence
 -- this is not a Monoid instance.
 instance (GamePosition a, Ord b) => Semigroup (AlphaBeta a b) where
     a <> b = if getVal a >= getVal b then a else b
+
+-- Let's define this game tree datatype and play around with it
+data GameTree a = Node a [GameTree a] deriving Show
+
+-- I've actually no use for this Applicative instance in this program, but let's
+-- define it anyway. Proofs of the applicative functor laws are included in 
+-- gametree_proofs.txt.
+instance Applicative GameTree where
+    -- pure is quite evident
+    pure x = Node x []
+    -- This was fairly nontrivial. There are probably many ways to define the
+    -- applicative instance. This seemed like the most straightforward way
+    -- of defining the <*> and also satisfies the applicative functor laws.
+    Node f nfs <*> Node x nxs = Node (f x) (map (fmap f) nxs
+                                         ++ map (fmap ($ x)) nfs)
+
+instance Functor GameTree where
+    -- This was evident, too
+    fmap f (Node x ns) = Node (f x) (map (fmap f) ns)
+
+
+-- This is how fmap would be implemented utilizing the Applicative instance.
+-- It seems to work!
+fmap2 :: (a -> b) -> GameTree a -> GameTree b
+fmap2 f = (pure f <*>)
+
+gameTree :: GamePosition a => a -> GameTree a
+gameTree pos = Node pos $ gameTree <$> children pos
 
 -- An implementation of the negamax algorithm with alpha-beta pruning
 -- https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning

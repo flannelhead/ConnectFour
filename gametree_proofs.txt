@@ -1,0 +1,82 @@
+data GameTree a = Node a [GameTree a] deriving Show
+
+instance Functor GameTree where
+    fmap f (Node x ns) = Node (f x) (map (fmap f) ns)
+
+-- The functor laws can be quite easily seen to be satisfied (although they do
+-- seem a bit hairy to prove due to the recursive data structure).
+
+
+instance Applicative GameTree where
+    pure x = Node x []
+    Node f nfs <*> Node x nxs = Node (f x) (map (fmap f) nxs
+                                         ++ map (fmap ($ x)) nfs)
+
+-- Proof of the applicative functor laws
+
+-- identity
+pure id <*> v
+= Node id [] <*> Node x xs
+= Node (id x) (map (fmap id) xs ++ map (fmap ($ x) []))
+= Node x (xs ++ [])
+= v
+
+
+-- composition
+pure (.) <*> u <*> v <*> w
+= Node (.) [] <*> Node f fs <*> Node g gs <*> Node x xs
+= Node ((.) f) (map (fmap (.)) fs ++ map (fmap ($ f)) [])
+    <*> Node g gs <*> Node x xs
+= Node ((.) f) (map (fmap (.)) fs) <*> Node g gs <*> Node x xs
+= Node ((.) f g) (map (fmap ((.) f) gs ++ map (fmap ($ g)) (map (fmap (.)) fs))
+    <*> Node x xs
+= Node (f . g) (map (fmap (f .)) gs ++ map (fmap (($ g) . (.))) fs)
+    <*> Node x xs
+= Node (f . g) (map (fmap (f .)) gs ++ map (fmap (. g)) fs) <*> Node x xs
+= Node ((f . g) x) (map (fmap (f . g)) xs
+                 ++ map (fmap ($ x))
+                      (map (fmap (f .)) gs
+                    ++ map (fmap (. g)) fs))
+= Node (f (g x)) (map (fmap (f . g)) xs
+               ++ map (fmap (($ x) . (f .))) gs
+               ++ map (fmap (($ x) . (. g))) fs)
+= Node (f (g x)) (map (fmap (f . g)) xs
+               ++ map (fmap (f . ($ x))) gs
+               ++ map (fmap ($ g x)) fs)
+
+u <*> (v <*> w)
+= Node f fs <*> (Node g gs <*> Node x xs)
+= Node f fs <*> Node (g x) (map (fmap g) xs ++ map (fmap ($ x)) gs)
+= Node (f (g x)) (map (fmap f) (map (fmap g) xs ++ map (fmap ($ x)) gs)
+               ++ map (fmap ($ g x)) fs)
+= Node (f (g x)) (map (fmap f . g) xs
+               ++ map (fmap (f . ($ x))) gs
+               ++ map (fmap ($ g x)) fs)
+= pure (.) <*> u <*> v <*> w
+
+-- auxiliary results
+($ g) . (.) = \f -> ($ g) ((.) f) = \f -> ($ g) (f .) = \f -> f . g = (. g)
+($ x) . (f .) = \g -> ($ x) (f . g) = \g -> (f . g) x = f . ($ x)
+($ x) . (. g) = \f -> ($ x) (f . g) = \f -> (f . g) x = $ g x
+
+
+-- homomorphism
+pure f <*> pure x
+= Node f [] <*> Node x []
+= Node (f x) (map (fmap f) [] ++ map (fmap ($ x)) [])
+= Node (f x) ([] ++ [])
+= pure (f x)
+
+
+-- interchange
+u <*> pure y
+= Node f fs <*> Node y []
+= Node (f y) (map (fmap f) [] ++ map (fmap ($ y)) fs)
+= Node (f y) (map (fmap ($ y)) fs)
+
+pure ($ y) <*> u
+= Node ($ y) [] <*> Node f fs
+= Node (($ y) f) (map (fmap ($ y)) fs ++ map (fmap ($ f)) [])
+= Node (f y) (map (fmap ($ y)) fs)
+= u <*> pure y
+
