@@ -1,7 +1,6 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, InstanceSigs #-}
 
 import Control.Monad
-import Control.Monad.State.Lazy
 import System.IO
 import System.Console.ANSI
 import System.Random
@@ -13,6 +12,42 @@ data Game = Game { message    :: String
                  , depth      :: Int
                  , position   :: !Position
                  , cursorCol  :: !Int }
+
+-- I've implemented the StateT transformer myself to get some exercise.
+-- This was done without looking at the mtl implementation at all (except for
+-- the documentation for hints of the types)
+data StateT s m a = StateT { runStateT :: s -> m (a, s) }
+
+instance Monad m => Monad (StateT s m) where
+    return :: a -> StateT s m a
+    return x = StateT $ \s -> return (x, s)
+
+    (>>=) :: StateT s m a -> (a -> StateT s m b) -> StateT s m b
+    sx >>= f = StateT $ \s1 -> runStateT sx s1
+                     >>= \(a, s2) -> runStateT (f a) s2
+
+instance Monad m => Applicative (StateT s m) where
+    pure = return
+    ff <*> fx = do { f <- ff; x <- fx; return $ f x }
+
+instance Monad m => Functor (StateT s m) where
+    fmap f fx = do { x <- fx; return $ f x }
+
+put :: Monad m => s -> StateT s m ()
+put s = StateT $ const $ return ((), s)
+
+get :: Monad m => StateT s m s
+get = StateT $ \s -> return (s, s)
+
+modify :: Monad m => (s -> s) -> StateT s m ()
+modify f = get >>= \s -> put (f s)
+
+lift :: Monad m => m a -> StateT s m a
+lift mx = StateT $ \s -> mx >>= \x -> return (x, s)
+
+evalStateT :: Monad m => StateT s m a -> s -> m a
+evalStateT sx s = runStateT sx s >>= \(x, _) -> return x
+
 
 instance Show Game where
     show game = let Position _ turn board = position game in
