@@ -11,7 +11,8 @@ adjust the search depth determined at the bottom of `Main.hs`.
 `Main.hs` contains most of the gameplay and console drawing logic. The game
 logic and IO were originally written in terms of plain `IO ()` but have since
 been lifted to `StateT Game IO ()` where the game state is implicitly carried in
-the `StateT` monad transformer. Also, some monadic idioms are in use.
+the `StateT` monad transformer. Additionally, I implemented the `StateT` myself
+without looking at the implementation in `mtl` at all.
 
 `ConnectFour.hs` contains the Connect Four game representation and a few helper
 functions. The game board representation consists of two 64-bit words, one for
